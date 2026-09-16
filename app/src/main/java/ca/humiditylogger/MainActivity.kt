@@ -25,8 +25,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Space
-import android.widget.Spinner
-import android.widget.ArrayAdapter
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -553,7 +551,11 @@ class MainActivity : ComponentActivity() {
             ).apply { topMargin = dp(8) },
         )
 
-        val dialog = AlertDialog.Builder(this).setView(panel).create()
+        val settingsScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(panel)
+        }
+        val dialog = AlertDialog.Builder(this).setView(settingsScroll).create()
         val doneButton = Button(this).apply {
             text = "Done"
             isAllCaps = false
@@ -638,6 +640,178 @@ class MainActivity : ComponentActivity() {
         dialog.show()
     }
 
+    private fun showStyledDialog(
+        title: String,
+        message: String? = null,
+        body: View? = null,
+        positiveLabel: String? = null,
+        negativeLabel: String? = null,
+        neutralLabel: String? = null,
+        onPositive: ((AlertDialog) -> Boolean)? = null,
+        onNegative: ((AlertDialog) -> Unit)? = null,
+        onNeutral: ((AlertDialog) -> Unit)? = null,
+    ): AlertDialog {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        fun rounded(color: Int, radius: Int = 18) = GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radius).toFloat()
+        }
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(20), dp(22), dp(18))
+            background = rounded(CARD, 24)
+        }
+        panel.addView(TextView(this).apply {
+            text = title
+            textSize = 23f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(TEXT_PRIMARY)
+        })
+        message?.let {
+            panel.addView(TextView(this).apply {
+                text = it
+                textSize = 14f
+                setTextColor(TEXT_SECONDARY)
+                setLineSpacing(0f, 1.18f)
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(10) })
+        }
+        body?.let {
+            panel.addView(it, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(14) })
+        }
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        }
+        panel.addView(actions, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = dp(18) })
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(panel)
+        }
+        val dialog = AlertDialog.Builder(this).setView(scroll).create()
+        fun actionButton(label: String, primary: Boolean, click: () -> Unit) =
+            Button(this).apply {
+                text = label
+                isAllCaps = false
+                textSize = 14f
+                minHeight = dp(46)
+                setTextColor(if (primary) Color.BLACK else ACCENT)
+                backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    if (primary) ACCENT else Color.TRANSPARENT
+                )
+                setOnClickListener { click() }
+            }
+        neutralLabel?.let { label ->
+            actions.addView(actionButton(label, false) {
+                onNeutral?.invoke(dialog)
+                dialog.dismiss()
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        if (neutralLabel == null) actions.addView(Space(this), LinearLayout.LayoutParams(0, 1, 1f))
+        negativeLabel?.let { label ->
+            actions.addView(actionButton(label, false) {
+                onNegative?.invoke(dialog)
+                dialog.dismiss()
+            })
+        }
+        positiveLabel?.let { label ->
+            actions.addView(actionButton(label, true) {
+                if (onPositive?.invoke(dialog) != false) dialog.dismiss()
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { marginStart = dp(6) })
+        }
+        dialog.setOnShowListener {
+            dialog.window?.apply {
+                setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                setLayout(
+                    (resources.displayMetrics.widthPixels * 0.92f).toInt(),
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                )
+            }
+        }
+        dialog.show()
+        return dialog
+    }
+
+    private fun showStyledOptionsDialog(
+        title: String,
+        message: String? = null,
+        options: List<String>,
+        selectedIndex: Int? = null,
+        confirmLabel: String? = null,
+        onChosen: (Int) -> Unit,
+    ) {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        fun rowBackground(selected: Boolean) = GradientDrawable().apply {
+            setColor(if (selected) Color.rgb(31, 52, 45) else BACKGROUND)
+            cornerRadius = dp(14).toFloat()
+            if (selected) setStroke(dp(1), ACCENT)
+        }
+        var selected = selectedIndex ?: -1
+        val rows = mutableListOf<TextView>()
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        lateinit var dialog: AlertDialog
+        fun redraw() {
+            rows.forEachIndexed { index, row ->
+                val checked = index == selected
+                row.text = if (selectedIndex != null) {
+                    "${if (checked) "✓" else "  "}  ${options[index]}"
+                } else options[index]
+                row.background = rowBackground(checked)
+                row.setTextColor(if (checked) ACCENT else TEXT_PRIMARY)
+            }
+        }
+        options.forEachIndexed { index, option ->
+            val row = TextView(this).apply {
+                text = option
+                textSize = 16f
+                gravity = Gravity.CENTER_VERTICAL
+                minHeight = dp(52)
+                setPadding(dp(16), dp(10), dp(16), dp(10))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    if (confirmLabel == null) {
+                        onChosen(index)
+                        dialog.dismiss()
+                    } else {
+                        selected = index
+                        redraw()
+                    }
+                }
+            }
+            rows += row
+            body.addView(row, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { if (index > 0) topMargin = dp(7) })
+        }
+        redraw()
+        dialog = showStyledDialog(
+            title = title,
+            message = message,
+            body = body,
+            positiveLabel = confirmLabel,
+            negativeLabel = "Cancel",
+            onPositive = {
+                if (selected >= 0) onChosen(selected)
+                true
+            },
+        )
+    }
+
     private fun previewCsvImport(uri: Uri) {
         lifecycleScope.launch {
             val preview = withContext(Dispatchers.IO) {
@@ -647,22 +821,22 @@ class MainActivity : ComponentActivity() {
                     CsvImporter.preview(csv, store.all())
                 }
             }.getOrElse {
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Import failed")
-                    .setMessage(it.message ?: "This file could not be read.")
-                    .setPositiveButton("OK", null)
-                    .show()
+                showStyledDialog(
+                    title = "Import failed",
+                    message = it.message ?: "This file could not be read.",
+                    positiveLabel = "OK",
+                )
                 return@launch
             }
-            AlertDialog.Builder(this@MainActivity)
-                .setTitle("Import readings")
-                .setMessage(
+            showStyledDialog(
+                title = "Import readings",
+                message =
                     "${preview.readings.size} new readings\n" +
                         "${preview.duplicateCount} duplicates skipped\n" +
-                        "${preview.invalidCount} invalid rows skipped"
-                )
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Import") { _, _ ->
+                        "${preview.invalidCount} invalid rows skipped",
+                negativeLabel = "Cancel",
+                positiveLabel = "Import",
+                onPositive = {
                     lifecycleScope.launch(Dispatchers.IO) {
                         store.insertAll(preview.readings)
                         withContext(Dispatchers.Main) {
@@ -671,28 +845,31 @@ class MainActivity : ComponentActivity() {
                             status.text = "Imported ${preview.readings.size} readings"
                         }
                     }
-                }
-                .show()
+                    true
+                },
+            )
         }
     }
 
     private fun showSetupGuide() {
-        AlertDialog.Builder(this)
-            .setTitle("Set up Home Climate Monitor")
-            .setMessage(
+        showStyledDialog(
+            title = "Set up Home Climate Monitor",
+            message =
                 "1. Connect Google Home and choose the home that contains your thermostat.\n\n" +
                     "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery.\n\n" +
                     "3. Choose an indoor device and outdoor location in Settings.\n\n" +
                     "4. Optional: add a climate or graph widget from your launcher.\n\n" +
-                    "Sampling health in Settings shows the latest attempt, success, timing, and battery policy."
-            )
-            .setNeutralButton("Connect Google Home") { _, _ -> requestHomePermission() }
-            .setNegativeButton("Later", null)
-            .setPositiveButton("Done") { _, _ ->
+                    "Sampling health in Settings shows the latest attempt, success, timing, and battery policy.",
+            neutralLabel = "Connect Home",
+            negativeLabel = "Later",
+            positiveLabel = "Done",
+            onNeutral = { requestHomePermission() },
+            onPositive = {
                 getSharedPreferences(SETUP_PREFS, MODE_PRIVATE).edit()
                     .putBoolean(KEY_SETUP_COMPLETE, true).apply()
-            }
-            .show()
+                true
+            },
+        )
     }
 
     private fun showExportDialog() {
@@ -701,9 +878,10 @@ class MainActivity : ComponentActivity() {
         } else {
             selectedDay.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
         }
-        AlertDialog.Builder(this)
-            .setTitle("Export readings")
-            .setItems(arrayOf("Selected day ($dayLabel)", "All readings")) { _, which ->
+        showStyledOptionsDialog(
+            title = "Export readings",
+            options = listOf("Selected day ($dayLabel)", "All readings"),
+        ) { which ->
                 lifecycleScope.launch {
                     val export = withContext(Dispatchers.IO) {
                         val readings = if (which == 0) {
@@ -738,53 +916,53 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
     private fun showDataManagementDialog() {
         val retention = if (DataRetention.isOneYear(this)) "one year" else "unlimited"
-        AlertDialog.Builder(this)
-            .setTitle("Stored data")
-            .setMessage("${store.count()} readings use ${formatStorageSize(store.databaseSizeBytes())}. Retention is $retention.")
-            .setItems(arrayOf("Export all readings", "Change retention", "Delete all readings")) { _, which ->
-                when (which) {
-                    0 -> exportAllReadings()
-                    1 -> showRetentionDialog()
-                    2 -> confirmClearReadings()
-                }
+        showStyledOptionsDialog(
+            title = "Stored data",
+            message = "${store.count()} readings use ${formatStorageSize(store.databaseSizeBytes())}. Retention is $retention.",
+            options = listOf("Export all readings", "Change retention", "Delete all readings"),
+        ) { which ->
+            when (which) {
+                0 -> exportAllReadings()
+                1 -> showRetentionDialog()
+                2 -> confirmClearReadings()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
 
     private fun showRetentionDialog() {
         val current = if (DataRetention.isOneYear(this)) 1 else 0
-        AlertDialog.Builder(this)
-            .setTitle("Data retention")
-            .setSingleChoiceItems(arrayOf("Unlimited", "One year"), current) { dialog, which ->
-                DataRetention.setOneYear(this, which == 1)
-                if (which == 1) lifecycleScope.launch(Dispatchers.IO) { DataRetention.apply(this@MainActivity, store) }
-                status.text = if (which == 1) "Keeping one year of readings" else "Keeping readings indefinitely"
-                dialog.dismiss()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        showStyledOptionsDialog(
+            title = "Data retention",
+            options = listOf("Unlimited", "One year"),
+            selectedIndex = current,
+            confirmLabel = "Save",
+        ) { which ->
+            DataRetention.setOneYear(this, which == 1)
+            if (which == 1) lifecycleScope.launch(Dispatchers.IO) { DataRetention.apply(this@MainActivity, store) }
+            status.text = if (which == 1) "Keeping one year of readings" else "Keeping readings indefinitely"
+        }
     }
 
     private fun confirmClearReadings() {
-        AlertDialog.Builder(this)
-            .setTitle("Delete every reading?")
-            .setMessage("This cannot be undone. Export a CSV backup first if you may need this history.")
-            .setNeutralButton("Export first") { _, _ -> exportAllReadings() }
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Delete") { _, _ ->
+        showStyledDialog(
+            title = "Delete every reading?",
+            message = "This cannot be undone. Export a CSV backup first if you may need this history.",
+            neutralLabel = "Export first",
+            negativeLabel = "Cancel",
+            positiveLabel = "Delete",
+            onNeutral = { exportAllReadings() },
+            onPositive = {
                 store.clear()
                 refreshUiFromStorage()
                 ClimateWidgetProvider.updateAll(applicationContext)
                 status.text = "All stored readings deleted"
-            }
-            .show()
+                true
+            },
+        )
     }
 
     private fun exportAllReadings() {
@@ -819,56 +997,96 @@ class MainActivity : ComponentActivity() {
     private fun showHumidityAlertDialog() {
         val density = resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
+        fun fieldBackground() = GradientDrawable().apply {
+            setColor(BACKGROUND)
+            cornerRadius = dp(12).toFloat()
+            setStroke(dp(1), Color.rgb(48, 70, 63))
+        }
         val current = HumidityAlerts.settings(this)
         val enabled = Switch(this).apply {
             text = "Enable humidity notifications"
             isChecked = current.enabled
+            setTextColor(TEXT_PRIMARY)
+            textSize = 15f
         }
         val low = EditText(this).apply {
             hint = "Low threshold (%)"
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(current.low.toString())
+            setTextColor(TEXT_PRIMARY)
+            setHintTextColor(TEXT_SECONDARY)
+            background = fieldBackground()
+            setPadding(dp(14), dp(12), dp(14), dp(12))
         }
         val high = EditText(this).apply {
             hint = "High threshold (%)"
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(current.high.toString())
+            setTextColor(TEXT_PRIMARY)
+            setHintTextColor(TEXT_SECONDARY)
+            background = fieldBackground()
+            setPadding(dp(14), dp(12), dp(14), dp(12))
         }
         val durations = listOf(30, 60, 120)
-        val duration = Spinner(this).apply {
-            adapter = ArrayAdapter(
-                this@MainActivity,
-                android.R.layout.simple_spinner_dropdown_item,
-                durations.map { "$it minutes" },
-            )
-            setSelection(durations.indexOf(current.durationMinutes).coerceAtLeast(0))
+        var selectedDuration = current.durationMinutes
+        val durationButtons = mutableListOf<Button>()
+        fun redrawDurations() {
+            durationButtons.forEachIndexed { index, button ->
+                val selected = durations[index] == selectedDuration
+                button.setTextColor(if (selected) Color.BLACK else ACCENT)
+                button.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    if (selected) ACCENT else BACKGROUND
+                )
+            }
         }
+        val durationRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            durations.forEachIndexed { index, minutes ->
+                val button = Button(this@MainActivity).apply {
+                    text = "$minutes min"
+                    isAllCaps = false
+                    minHeight = dp(44)
+                    setOnClickListener {
+                        selectedDuration = minutes
+                        redrawDurations()
+                    }
+                }
+                durationButtons += button
+                addView(button, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    if (index > 0) marginStart = dp(6)
+                })
+            }
+        }
+        redrawDurations()
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(8), dp(24), 0)
             addView(enabled)
-            addView(low)
-            addView(high)
+            addView(low, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(12)
+            })
+            addView(high, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8)
+            })
             addView(TextView(this@MainActivity).apply {
                 text = "Condition duration"
-                setPadding(0, dp(10), 0, 0)
+                textSize = 13f
+                setTextColor(TEXT_SECONDARY)
+                setPadding(0, dp(14), 0, dp(5))
             })
-            addView(duration)
+            addView(durationRow)
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Humidity alerts")
-            .setView(content)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save", null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        showStyledDialog(
+            title = "Humidity alerts",
+            body = content,
+            negativeLabel = "Cancel",
+            positiveLabel = "Save",
+            onPositive = {
                 val lowValue = low.text.toString().toIntOrNull()
                 val highValue = high.text.toString().toIntOrNull()
                 if (lowValue == null || highValue == null || lowValue !in 0..99 || highValue !in 1..100 || lowValue >= highValue) {
                     low.error = "Low must be below high (0–99)"
                     high.error = "High must be above low (1–100)"
-                    return@setOnClickListener
+                    return@showStyledDialog false
                 }
                 HumidityAlerts.save(
                     this,
@@ -876,17 +1094,16 @@ class MainActivity : ComponentActivity() {
                         enabled.isChecked,
                         lowValue,
                         highValue,
-                        durations[duration.selectedItemPosition],
+                        selectedDuration,
                     ),
                 )
                 if (enabled.isChecked && Build.VERSION.SDK_INT >= 33 && !HumidityAlerts.canNotify(this)) {
                     requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4102)
                 }
                 status.text = if (enabled.isChecked) "Humidity alerts enabled" else "Humidity alerts disabled"
-                dialog.dismiss()
-            }
-        }
-        dialog.show()
+                true
+            },
+        )
     }
 
     private fun showSamplingHealthDialog() {
@@ -908,9 +1125,9 @@ class MainActivity : ComponentActivity() {
             "Android battery optimization applies"
         }
         val failure = LoggerScheduler.lastError(this) ?: "None"
-        AlertDialog.Builder(this)
-            .setTitle("Sampling health")
-            .setMessage(
+        showStyledDialog(
+            title = "Sampling health",
+            message =
                 "Periodic work: $periodicWorkState\n" +
                     "Manual work: $manualWorkState\n" +
                     "Next eligible run: $next\n\n" +
@@ -920,10 +1137,9 @@ class MainActivity : ComponentActivity() {
                     "Recorded runs: ${stats.runCount}\n" +
                     "Last duration: ${stats.lastDurationMs} ms\n" +
                     "Average duration: $averageMs ms\n" +
-                    "Battery policy: $batteryState"
-            )
-            .setPositiveButton("OK", null)
-            .show()
+                    "Battery policy: $batteryState",
+            positiveLabel = "OK",
+        )
     }
 
     private fun showThermostatSelectionDialog() {
@@ -937,11 +1153,11 @@ class MainActivity : ComponentActivity() {
                     emptyList()
                 }
             if (devices.isEmpty()) {
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Indoor device")
-                    .setMessage("No compatible climate devices were returned. Check Google Home access and try again.")
-                    .setPositiveButton("OK", null)
-                    .show()
+                showStyledDialog(
+                    title = "Indoor device",
+                    message = "No compatible climate devices were returned. Check Google Home access and try again.",
+                    positiveLabel = "OK",
+                )
                 return@launch
             }
             val duplicateNames = devices.groupingBy { it.source }.eachCount()
@@ -956,11 +1172,13 @@ class MainActivity : ComponentActivity() {
             var selected = if (current == null) 0 else (
                 devices.indexOfFirst { it.deviceId == currentId || (currentId == null && it.source == current) } + 1
             ).coerceAtLeast(0)
-            AlertDialog.Builder(this@MainActivity)
-                .setTitle("Indoor device")
-                .setSingleChoiceItems(choices.toTypedArray(), selected) { _, which -> selected = which }
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Use device") { _, _ ->
+            showStyledOptionsDialog(
+                title = "Indoor device",
+                options = choices,
+                selectedIndex = selected,
+                confirmLabel = "Use device",
+            ) { chosen ->
+                    selected = chosen
                     ThermostatSelection.setSelectedSource(
                         this@MainActivity,
                         if (selected == 0) null else devices[selected - 1].source,
@@ -970,7 +1188,6 @@ class MainActivity : ComponentActivity() {
                     ClimateWidgetProvider.updateAll(applicationContext)
                     status.text = "Indoor device selection updated"
                 }
-                .show()
         }
     }
 
@@ -982,29 +1199,33 @@ class MainActivity : ComponentActivity() {
             hint = "Street, city, province, postal code"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
             setSingleLine(false)
+            setTextColor(TEXT_PRIMARY)
+            setHintTextColor(TEXT_SECONDARY)
+            background = GradientDrawable().apply {
+                setColor(BACKGROUND)
+                cornerRadius = 12f * resources.displayMetrics.density
+                setStroke(resources.displayMetrics.density.toInt().coerceAtLeast(1), Color.rgb(48, 70, 63))
+            }
+            val padding = (14f * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding, padding, padding)
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Outdoor weather location")
-            .setMessage("Enter an address or place name. Only its coordinates are sent to the weather service.")
-            .setView(input)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Use address", null)
-            .create()
-
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        showStyledDialog(
+            title = "Outdoor weather location",
+            message = "Enter an address or place name. Only its coordinates are sent to the weather service.",
+            body = input,
+            negativeLabel = "Cancel",
+            positiveLabel = "Use address",
+            onPositive = { dialog ->
                 val query = input.text.toString().trim()
                 if (query.isEmpty()) {
                     input.error = "Enter an address or place"
-                    return@setOnClickListener
+                    return@showStyledDialog false
                 }
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                 status.text = "Finding outdoor weather location…"
                 lifecycleScope.launch {
                     val location = geocodeLocation(query)
                     if (location == null) {
                         input.error = "Location not found. Add the city and province."
-                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
                         status.text = "Could not find that weather location"
                     } else {
                         WeatherLocationStore.set(this@MainActivity, location)
@@ -1013,9 +1234,9 @@ class MainActivity : ComponentActivity() {
                         dialog.dismiss()
                     }
                 }
-            }
-        }
-        dialog.show()
+                false
+            },
+        )
     }
 
     @Suppress("DEPRECATION")
