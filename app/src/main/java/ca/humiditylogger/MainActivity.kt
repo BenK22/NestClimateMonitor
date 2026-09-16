@@ -70,7 +70,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var previousDayButton: Button
     private lateinit var nextDayButton: Button
     private lateinit var chartDate: TextView
-    private lateinit var dailySummary: TextView
+    private lateinit var indoorTemperatureSummary: SummaryViews
+    private lateinit var indoorHumiditySummary: SummaryViews
+    private lateinit var outdoorTemperatureSummary: SummaryViews
+    private lateinit var outdoorHumiditySummary: SummaryViews
     private lateinit var settingsButton: Button
     private val zoneId = ZoneId.of("America/Toronto")
     private var selectedDay: LocalDate = LocalDate.now(zoneId)
@@ -203,11 +206,7 @@ class MainActivity : ComponentActivity() {
             WeatherClient.isOutdoor(it.source) || ThermostatSelection.matches(this, it)
         }
         chart.readings = dayReadings
-        dailySummary.text = buildString {
-            append(dailyStats("Inside", dayReadings.filterNot { WeatherClient.isOutdoor(it.source) }))
-            append("\n")
-            append(dailyStats("Outside", dayReadings.filter { WeatherClient.isOutdoor(it.source) }))
-        }
+        updateDailySummaries(dayReadings)
         chartDate.text = if (selectedDay == LocalDate.now(zoneId)) {
             "Today"
         } else {
@@ -291,20 +290,37 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun dailyStats(label: String, readings: List<Reading>): String {
-        val temperatures = readings.mapNotNull { it.temperatureC }
-        val humidities = readings.mapNotNull { it.humidityPercent }
-        val tempText = if (temperatures.isEmpty()) {
-            "no temperature data"
-        } else {
-            "${formatTemperature(temperatures.min())} / ${formatTemperature(temperatures.average())} / ${formatTemperature(temperatures.max())}"
-        }
-        val humidityText = if (humidities.isEmpty()) {
-            "no humidity data"
-        } else {
-            "%.0f%% / %.0f%% / %.0f%%".format(humidities.min(), humidities.average(), humidities.max())
-        }
-        return "$label  •  T $tempText  •  H $humidityText"
+    private fun updateDailySummaries(readings: List<Reading>) {
+        val indoor = readings.filterNot { WeatherClient.isOutdoor(it.source) }
+        val outdoor = readings.filter { WeatherClient.isOutdoor(it.source) }
+        updateSummary(
+            indoorTemperatureSummary,
+            indoor.mapNotNull { it.temperatureC },
+            ::formatTemperature,
+        )
+        updateSummary(
+            indoorHumiditySummary,
+            indoor.mapNotNull { it.humidityPercent },
+        ) { "%.0f%%".format(it) }
+        updateSummary(
+            outdoorTemperatureSummary,
+            outdoor.mapNotNull { it.temperatureC },
+            ::formatTemperature,
+        )
+        updateSummary(
+            outdoorHumiditySummary,
+            outdoor.mapNotNull { it.humidityPercent },
+        ) { "%.0f%%".format(it) }
+    }
+
+    private fun updateSummary(
+        views: SummaryViews,
+        values: List<Double>,
+        formatter: (Double) -> String,
+    ) {
+        views.minimum.text = values.minOrNull()?.let(formatter) ?: "—"
+        views.maximum.text = values.maxOrNull()?.let(formatter) ?: "—"
+        views.average.text = values.takeIf { it.isNotEmpty() }?.average()?.let(formatter) ?: "—"
     }
 
     private fun celsiusToFahrenheit(celsius: Double): Double = celsius * 9.0 / 5.0 + 32.0
@@ -949,6 +965,52 @@ class MainActivity : ComponentActivity() {
             }
             return card to value
         }
+        fun summaryCard(label: String, color: Int): Pair<LinearLayout, SummaryViews> {
+            fun stat(labelText: String): Pair<LinearLayout, TextView> {
+                val value = TextView(this).apply {
+                    text = "—"
+                    textSize = 18f
+                    gravity = Gravity.CENTER
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(color)
+                }
+                return LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    addView(TextView(this@MainActivity).apply {
+                        text = labelText
+                        textSize = 9f
+                        gravity = Gravity.CENTER
+                        setTextColor(TEXT_SECONDARY)
+                    })
+                    addView(value)
+                } to value
+            }
+            val stats = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            val (minimumColumn, minimum) = stat("MIN")
+            val (maximumColumn, maximum) = stat("MAX")
+            val (averageColumn, average) = stat("AVG")
+            stats.addView(minimumColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            stats.addView(maximumColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            stats.addView(averageColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+                background = rounded(CARD, 14)
+                addView(TextView(this@MainActivity).apply {
+                    text = label
+                    textSize = 11f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(TEXT_PRIMARY)
+                    setPadding(dp(3), 0, 0, dp(7))
+                })
+                addView(stats)
+            }
+            return card to SummaryViews(minimum, maximum, average)
+        }
         fun stateColumn(label: String): Pair<LinearLayout, TextView> {
             val value = TextView(this).apply {
                 text = "—"
@@ -1188,6 +1250,52 @@ class MainActivity : ComponentActivity() {
             addView(legendRow("Inside", TEMPERATURE, HUMIDITY, dashed = false))
             addView(legendRow("Outside", OUTDOOR_TEMPERATURE, OUTDOOR, dashed = true))
         }
+        val dailySummaryCards = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val indoorSummaryRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val (indoorTemperatureCard, indoorTemperatureViews) = summaryCard(
+            "INDOOR TEMPERATURE",
+            TEMPERATURE,
+        )
+        indoorTemperatureSummary = indoorTemperatureViews
+        indoorSummaryRow.addView(
+            indoorTemperatureCard,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        indoorSummaryRow.addView(Space(this), LinearLayout.LayoutParams(dp(8), 1))
+        val (indoorHumidityCard, indoorHumidityViews) = summaryCard("INDOOR HUMIDITY", HUMIDITY)
+        indoorHumiditySummary = indoorHumidityViews
+        indoorSummaryRow.addView(
+            indoorHumidityCard,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        dailySummaryCards.addView(indoorSummaryRow)
+
+        val outdoorSummaryRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val (outdoorTemperatureSummaryCard, outdoorTemperatureViews) = summaryCard(
+            "OUTSIDE TEMPERATURE",
+            OUTDOOR_TEMPERATURE,
+        )
+        outdoorTemperatureSummary = outdoorTemperatureViews
+        outdoorSummaryRow.addView(
+            outdoorTemperatureSummaryCard,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        outdoorSummaryRow.addView(Space(this), LinearLayout.LayoutParams(dp(8), 1))
+        val (outdoorHumiditySummaryCard, outdoorHumidityViews) = summaryCard("OUTSIDE HUMIDITY", OUTDOOR)
+        outdoorHumiditySummary = outdoorHumidityViews
+        outdoorSummaryRow.addView(
+            outdoorHumiditySummaryCard,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        dailySummaryCards.addView(
+            outdoorSummaryRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) },
+        )
         if (!isLandscape) {
             root.addView(
                 chartKey,
@@ -1196,14 +1304,8 @@ class MainActivity : ComponentActivity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = dp(8) },
             )
-            dailySummary = TextView(this).apply {
-                textSize = 12f
-                setTextColor(TEXT_SECONDARY)
-                setPadding(dp(14), dp(12), dp(14), dp(12))
-                background = rounded(CARD, 12)
-            }
             root.addView(
-                dailySummary,
+                dailySummaryCards,
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -1216,9 +1318,6 @@ class MainActivity : ComponentActivity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = dp(16) },
             )
-        }
-        if (isLandscape) {
-            dailySummary = TextView(this)
         }
 
         if (!isLandscape) root.addView(sectionTitle("Device diagnostics"))
@@ -1270,6 +1369,12 @@ class MainActivity : ComponentActivity() {
         store.close()
         super.onDestroy()
     }
+
+    private data class SummaryViews(
+        val minimum: TextView,
+        val maximum: TextView,
+        val average: TextView,
+    )
 
     private companion object {
         const val UI_REFRESH_MS = 2_000L
