@@ -8,6 +8,10 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
+import android.view.MotionEvent
+import java.text.DateFormat
+import java.util.Date
+import kotlin.math.abs
 import kotlin.math.max
 
 class ReadingChartView @JvmOverloads constructor(
@@ -40,8 +44,17 @@ class ReadingChartView @JvmOverloads constructor(
             field = value
             invalidate()
         }
-
     private val density = resources.displayMetrics.density
+    private var selectedTimestampMs: Long? = null
+    private val crosshairPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(180, 220, 235, 230)
+        strokeWidth = density
+    }
+    private val tooltipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(230, 7, 13, 12)
+        style = Paint.Style.FILL
+    }
+
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.rgb(42, 57, 53)
         strokeWidth = 1f
@@ -124,6 +137,13 @@ class ReadingChartView @JvmOverloads constructor(
             it.temperatureC?.let { value -> (value - tempMin) / (tempMax - tempMin) }
         }
 
+        selectedTimestampMs?.let { selected ->
+            val x = left + (right - left) * ((selected - dayStartMs).toDouble() /
+                (dayEndMs - dayStartMs)).coerceIn(0.0, 1.0).toFloat()
+            canvas.drawLine(x, top, x, bottom, crosshairPaint)
+            drawTooltip(canvas, selected, left, right, top)
+        }
+
         if (readings.isEmpty()) {
             canvas.drawText("No readings for this day", left + 12f, top + 34f, textPaint)
         }
@@ -138,6 +158,63 @@ class ReadingChartView @JvmOverloads constructor(
             }
             canvas.drawText(label, labelX, height - 8f * density, textPaint)
         }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (readings.isEmpty() || width == 0 || dayEndMs <= dayStartMs) return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                val left = 48f * density
+                val right = width - 48f * density
+                val fraction = ((event.x - left) / (right - left)).coerceIn(0f, 1f)
+                val target = dayStartMs + ((dayEndMs - dayStartMs) * fraction).toLong()
+                selectedTimestampMs = readings.minByOrNull { abs(it.timestampMs - target) }?.timestampMs
+                contentDescription = selectedTimestampMs?.let(::tooltipText)
+                invalidate()
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                performClick()
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
+    }
+
+    private fun drawTooltip(canvas: Canvas, selected: Long, left: Float, right: Float, top: Float) {
+        val lines = tooltipText(selected).split('\n')
+        val padding = 8f * density
+        val boxWidth = lines.maxOf { textPaint.measureText(it) } + padding * 2f
+        val lineHeight = textPaint.textSize * 1.35f
+        val x = (left + padding).coerceAtMost(right - boxWidth)
+        val bottom = top + padding * 2f + lineHeight * lines.size
+        canvas.drawRoundRect(x, top, x + boxWidth, bottom, 8f * density, 8f * density, tooltipPaint)
+        lines.forEachIndexed { index, line ->
+            canvas.drawText(line, x + padding, top + padding + lineHeight * (index + 0.8f), textPaint)
+        }
+    }
+
+    private fun tooltipText(selected: Long): String {
+        fun nearest(outdoor: Boolean): Reading? = readings
+            .asSequence()
+            .filter { if (outdoor) it.source == outdoorSource else !WeatherClient.isOutdoor(it.source) }
+            .minByOrNull { abs(it.timestampMs - selected) }
+        fun temp(value: Double?): String = value?.let {
+            if (useFahrenheit) "%.1f°".format(celsiusToFahrenheit(it)) else "%.1f°C".format(it)
+        } ?: "—"
+        fun humid(value: Double?): String = value?.let { "%.1f%%".format(it) } ?: "—"
+        val inside = nearest(false)
+        val outside = nearest(true)
+        return "${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(selected))}\n" +
+            "Inside ${temp(inside?.temperatureC)}  ${humid(inside?.humidityPercent)}\n" +
+            "Outside ${temp(outside?.temperatureC)}  ${humid(outside?.humidityPercent)}"
     }
 
     private fun drawSeries(

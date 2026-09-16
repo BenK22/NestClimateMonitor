@@ -14,6 +14,7 @@ import android.location.Geocoder
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
+import android.os.PowerManager
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -29,6 +30,7 @@ import android.widget.ArrayAdapter
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -38,9 +40,7 @@ import androidx.core.content.FileProvider
 import com.google.home.ForcePermissionFlow
 import com.google.home.PermissionsResultStatus
 import com.google.home.PermissionsState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -51,6 +51,9 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+    private val importCsv = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(::previewCsvImport)
+    }
     private lateinit var reader: HomeReader
     private lateinit var store: ReadingStore
     private lateinit var status: TextView
@@ -75,10 +78,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var outdoorTemperatureSummary: SummaryViews
     private lateinit var outdoorHumiditySummary: SummaryViews
     private lateinit var settingsButton: Button
-    private val zoneId = ZoneId.of("America/Toronto")
+    private val zoneId = ZoneId.systemDefault()
     private var selectedDay: LocalDate = LocalDate.now(zoneId)
     private var useFahrenheit = true
     private var homePermissionGranted = false
+    private var periodicWorkState = "Unknown"
+    private var manualWorkState = "Not requested"
+    private var nextScheduledMs: Long? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,6 +96,16 @@ class MainActivity : ComponentActivity() {
         setContentView(buildUi())
         refreshUiFromStorage()
         ClimateWidgetProvider.updateAll(applicationContext)
+        LoggerScheduler.periodicWork(this).observe(this) { workInfos ->
+            val work = workInfos.lastOrNull()
+            periodicWorkState = work?.state?.name ?: "Not scheduled"
+            nextScheduledMs = work?.nextScheduleTimeMillis?.takeIf { it > System.currentTimeMillis() }
+            refreshUiFromStorage()
+        }
+        LoggerScheduler.manualWork(this).observe(this) { workInfos ->
+            manualWorkState = workInfos.lastOrNull()?.state?.name ?: "Not requested"
+            refreshUiFromStorage()
+        }
 
         settingsButton.setOnClickListener { showSettingsMenu() }
         status.setOnClickListener {
@@ -111,11 +127,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 updatePermissionAndSchedule()
-                while (isActive) {
-                    refreshUiFromStorage()
-                    delay(UI_REFRESH_MS)
-                }
+                refreshUiFromStorage()
             }
+        }
+        if (!getSharedPreferences(SETUP_PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_COMPLETE, false)) {
+            window.decorView.post { showSetupGuide() }
         }
     }
 
@@ -437,6 +453,14 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) },
         )
+        val (healthRow, _) = clickableRow("Sampling health", periodicWorkState.lowercase().replaceFirstChar { it.uppercase() })
+        panel.addView(
+            healthRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) },
+        )
 
         val (unitsRow, unitsValue) = clickableRow(
             "Temperature units",
@@ -457,9 +481,17 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) },
         )
-        val (exportRow, _) = clickableRow("Export readings", "CSV file")
+        val (exportRow, _) = clickableRow("Export readings", "CSV backup")
         panel.addView(
             exportRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) },
+        )
+        val (importRow, _) = clickableRow("Import readings", "Restore a CSV backup")
+        panel.addView(
+            importRow,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -492,6 +524,14 @@ class MainActivity : ComponentActivity() {
         val (googleHomeRow, _) = clickableRow(
             "Google Home access",
             if (homePermissionGranted) "Connected" else "Not connected",
+        )
+        val (setupRow, _) = clickableRow("Setup guide", "Connection, logging, and widgets")
+        panel.addView(
+            setupRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) },
         )
         panel.addView(
             googleHomeRow,
@@ -540,6 +580,10 @@ class MainActivity : ComponentActivity() {
             status.text = "Refresh requested…"
             dialog.dismiss()
         }
+        healthRow.setOnClickListener {
+            dialog.dismiss()
+            showSamplingHealthDialog()
+        }
         unitsRow.setOnClickListener {
             useFahrenheit = !useFahrenheit
             getSharedPreferences(DISPLAY_PREFS, MODE_PRIVATE).edit()
@@ -557,6 +601,10 @@ class MainActivity : ComponentActivity() {
             dialog.dismiss()
             showExportDialog()
         }
+        importRow.setOnClickListener {
+            dialog.dismiss()
+            importCsv.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain"))
+        }
         dataRow.setOnClickListener {
             dialog.dismiss()
             showDataManagementDialog()
@@ -568,6 +616,10 @@ class MainActivity : ComponentActivity() {
         googleHomeRow.setOnClickListener {
             dialog.dismiss()
             requestHomePermission()
+        }
+        setupRow.setOnClickListener {
+            dialog.dismiss()
+            showSetupGuide()
         }
         thermostatRow.setOnClickListener {
             dialog.dismiss()
@@ -584,6 +636,63 @@ class MainActivity : ComponentActivity() {
             }
         }
         dialog.show()
+    }
+
+    private fun previewCsvImport(uri: Uri) {
+        lifecycleScope.launch {
+            val preview = withContext(Dispatchers.IO) {
+                runCatching {
+                    val csv = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        ?: error("The selected file could not be opened")
+                    CsvImporter.preview(csv, store.all())
+                }
+            }.getOrElse {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Import failed")
+                    .setMessage(it.message ?: "This file could not be read.")
+                    .setPositiveButton("OK", null)
+                    .show()
+                return@launch
+            }
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle("Import readings")
+                .setMessage(
+                    "${preview.readings.size} new readings\n" +
+                        "${preview.duplicateCount} duplicates skipped\n" +
+                        "${preview.invalidCount} invalid rows skipped"
+                )
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Import") { _, _ ->
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        store.insertAll(preview.readings)
+                        withContext(Dispatchers.Main) {
+                            refreshUiFromStorage()
+                            ClimateWidgetProvider.updateAll(applicationContext)
+                            status.text = "Imported ${preview.readings.size} readings"
+                        }
+                    }
+                }
+                .show()
+        }
+    }
+
+    private fun showSetupGuide() {
+        AlertDialog.Builder(this)
+            .setTitle("Set up Home Climate Monitor")
+            .setMessage(
+                "1. Connect Google Home and choose the home that contains your thermostat.\n\n" +
+                    "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery.\n\n" +
+                    "3. Choose an indoor device and outdoor location in Settings.\n\n" +
+                    "4. Optional: add a climate or graph widget from your launcher.\n\n" +
+                    "Sampling health in Settings shows the latest attempt, success, timing, and battery policy."
+            )
+            .setNeutralButton("Connect Google Home") { _, _ -> requestHomePermission() }
+            .setNegativeButton("Later", null)
+            .setPositiveButton("Done") { _, _ ->
+                getSharedPreferences(SETUP_PREFS, MODE_PRIVATE).edit()
+                    .putBoolean(KEY_SETUP_COMPLETE, true).apply()
+            }
+            .show()
     }
 
     private fun showExportDialog() {
@@ -780,15 +889,54 @@ class MainActivity : ComponentActivity() {
         dialog.show()
     }
 
+    private fun showSamplingHealthDialog() {
+        val stats = LoggerScheduler.runtimeStats(this)
+        val lastAttempt = LoggerScheduler.lastAttemptMs(this)?.let {
+            DateFormat.getDateTimeInstance().format(Date(it))
+        } ?: "Never"
+        val lastSuccess = LoggerScheduler.lastSuccessMs(this)?.let {
+            DateFormat.getDateTimeInstance().format(Date(it))
+        } ?: "Never"
+        val next = nextScheduledMs?.let {
+            DateFormat.getDateTimeInstance().format(Date(it))
+        } ?: "Determined by Android"
+        val averageMs = if (stats.runCount == 0L) 0L else stats.totalDurationMs / stats.runCount
+        val powerManager = getSystemService(PowerManager::class.java)
+        val batteryState = if (powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            "Unrestricted"
+        } else {
+            "Android battery optimization applies"
+        }
+        val failure = LoggerScheduler.lastError(this) ?: "None"
+        AlertDialog.Builder(this)
+            .setTitle("Sampling health")
+            .setMessage(
+                "Periodic work: $periodicWorkState\n" +
+                    "Manual work: $manualWorkState\n" +
+                    "Next eligible run: $next\n\n" +
+                    "Last attempt: $lastAttempt\n" +
+                    "Last success: $lastSuccess\n" +
+                    "Last failure: $failure\n\n" +
+                    "Recorded runs: ${stats.runCount}\n" +
+                    "Last duration: ${stats.lastDurationMs} ms\n" +
+                    "Average duration: $averageMs ms\n" +
+                    "Battery policy: $batteryState"
+            )
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
     private fun showThermostatSelectionDialog() {
         status.text = "Finding compatible climate devices…"
         lifecycleScope.launch {
-            val names = runCatching { reader.sample().readings.map { it.source }.distinct().sorted() }
+            val devices = runCatching {
+                reader.sample().readings.distinctBy { it.deviceId ?: it.source }.sortedBy { it.source }
+            }
                 .getOrElse {
                     status.text = "Device scan failed: ${it.message}"
                     emptyList()
                 }
-            if (names.isEmpty()) {
+            if (devices.isEmpty()) {
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Indoor device")
                     .setMessage("No compatible climate devices were returned. Check Google Home access and try again.")
@@ -796,9 +944,18 @@ class MainActivity : ComponentActivity() {
                     .show()
                 return@launch
             }
-            val choices = listOf("All compatible devices") + names
+            val duplicateNames = devices.groupingBy { it.source }.eachCount()
+            val labels = devices.map { reading ->
+                if ((duplicateNames[reading.source] ?: 0) > 1) {
+                    "${reading.source} (${reading.deviceId?.takeLast(6) ?: "unknown"})"
+                } else reading.source
+            }
+            val choices = listOf("All compatible devices") + labels
             val current = ThermostatSelection.selectedSource(this@MainActivity)
-            var selected = if (current == null) 0 else (names.indexOf(current) + 1).coerceAtLeast(0)
+            val currentId = ThermostatSelection.selectedDeviceId(this@MainActivity)
+            var selected = if (current == null) 0 else (
+                devices.indexOfFirst { it.deviceId == currentId || (currentId == null && it.source == current) } + 1
+            ).coerceAtLeast(0)
             AlertDialog.Builder(this@MainActivity)
                 .setTitle("Indoor device")
                 .setSingleChoiceItems(choices.toTypedArray(), selected) { _, which -> selected = which }
@@ -806,7 +963,8 @@ class MainActivity : ComponentActivity() {
                 .setPositiveButton("Use device") { _, _ ->
                     ThermostatSelection.setSelectedSource(
                         this@MainActivity,
-                        if (selected == 0) null else choices[selected],
+                        if (selected == 0) null else devices[selected - 1].source,
+                        if (selected == 0) null else devices[selected - 1].deviceId,
                     )
                     refreshUiFromStorage()
                     ClimateWidgetProvider.updateAll(applicationContext)
@@ -1370,6 +1528,11 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::store.isInitialized && ::status.isInitialized) refreshUiFromStorage()
+    }
+
     private data class SummaryViews(
         val minimum: TextView,
         val maximum: TextView,
@@ -1377,9 +1540,10 @@ class MainActivity : ComponentActivity() {
     )
 
     private companion object {
-        const val UI_REFRESH_MS = 2_000L
         const val DISPLAY_PREFS = "display_preferences"
         const val KEY_USE_FAHRENHEIT = "use_fahrenheit"
+        const val SETUP_PREFS = "setup"
+        const val KEY_SETUP_COMPLETE = "complete"
         val BACKGROUND = Color.rgb(9, 16, 14)
         val CARD = Color.rgb(22, 32, 29)
         val TEXT_PRIMARY = Color.rgb(238, 246, 243)

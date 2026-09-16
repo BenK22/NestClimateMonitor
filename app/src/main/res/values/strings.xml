@@ -5,4 +5,12 @@
     <string name="widget_description">Indoor and outdoor temperature and humidity</string>
     <string name="graph_widget_name">Climate History Graph</string>
     <string name="graph_widget_description">Resizable 6-hour indoor and outdoor climate graph</string>
+    <string name="inside_temperature_short">IN TEMP</string>
+    <string name="inside_humidity_short">IN HUMID</string>
+    <string name="outside_temperature_short">OUT TEMP</string>
+    <string name="outside_humidity_short">OUT HUMID</string>
+    <string name="no_value">--</string>
+    <string name="waiting_first_reading">Waiting for first reading</string>
+    <string name="climate_graph_description">Recent indoor and outdoor climate graph</string>
+    <string name="climate_history_description">Indoor and outdoor climate history</string>
 </resources>

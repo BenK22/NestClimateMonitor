@@ -146,6 +146,7 @@ class HomeReader(context: Context) {
                     readings += Reading(
                         timestampMs = now,
                         source = device.name,
+                        deviceId = device.id.toString(),
                         temperatureC = temperature,
                         humidityPercent = humidity,
                         heatingSetpointC = heatingSetpoint,

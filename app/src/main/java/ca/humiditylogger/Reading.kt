@@ -3,6 +3,7 @@ package ca.humiditylogger
 data class Reading(
     val timestampMs: Long,
     val source: String,
+    val deviceId: String? = null,
     val temperatureC: Double?,
     val humidityPercent: Double?,
     val heatingSetpointC: Double? = null,

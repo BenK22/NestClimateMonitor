@@ -64,6 +64,12 @@ The Android OAuth client ID is associated with the application ID and signing-ce
 
 Release signing and automation are documented in [docs/RELEASING.md](docs/RELEASING.md). Screenshot guidance is in [docs/screenshots/README.md](docs/screenshots/README.md). The project is available under the [MIT License](LICENSE), and user-facing changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
+Background-worker timing and a repeatable Android battery-accounting procedure are documented in [docs/BATTERY_TESTING.md](docs/BATTERY_TESTING.md).
+
+## Testing safety
+
+`testDebugUnitTest` is safe on a development machine. Run `connectedDebugAndroidTest` only on an emulator or disposable installation: Android's connected-test lifecycle can reinstall the target package and clear its local readings and preferences on a personal phone.
+
 ## What success looks like
 
 After authorization, the diagnostics should contain `RelativeHumidityMeasurement` with a humidity value. If the thermostat returns only `Thermostat`/`ExtendedThermostat`, the Home API is not exposing its humidity sensor and the app will report that explicitly.

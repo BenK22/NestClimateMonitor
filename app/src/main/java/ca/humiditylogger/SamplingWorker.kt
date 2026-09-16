@@ -1,6 +1,7 @@
 package ca.humiditylogger
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.home.PermissionsState
@@ -15,6 +16,7 @@ class SamplingWorker(
     override suspend fun doWork(): Result = sampleMutex.withLock {
         if (!LoggerScheduler.isEnabled(applicationContext)) return Result.success()
 
+        val startedAt = SystemClock.elapsedRealtime()
         val store = ReadingStore(applicationContext)
         return try {
             val latestIndoorMs = store.recent()
@@ -70,6 +72,10 @@ class SamplingWorker(
             )
             Result.success()
         } finally {
+            LoggerScheduler.recordRun(
+                applicationContext,
+                SystemClock.elapsedRealtime() - startedAt,
+            )
             store.close()
         }
     }

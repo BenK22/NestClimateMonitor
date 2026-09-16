@@ -8,22 +8,22 @@
     android:padding="10dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView style="@style/WidgetHeading" android:text="IN TEMP" />
-            <TextView android:id="@+id/widget_indoor_temp" style="@style/WidgetValue" android:text="--" android:textColor="#FF8570" />
+            <TextView style="@style/WidgetHeading" android:text="@string/inside_temperature_short" />
+            <TextView android:id="@+id/widget_indoor_temp" style="@style/WidgetValue" android:text="@string/no_value" android:textColor="#FF8570" />
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView style="@style/WidgetHeading" android:text="IN HUMID" />
-            <TextView android:id="@+id/widget_indoor_humidity" style="@style/WidgetValue" android:text="--" android:textColor="#56BEFF" />
+            <TextView style="@style/WidgetHeading" android:text="@string/inside_humidity_short" />
+            <TextView android:id="@+id/widget_indoor_humidity" style="@style/WidgetValue" android:text="@string/no_value" android:textColor="#56BEFF" />
         </LinearLayout>
         <LinearLayout android:id="@+id/widget_outdoor_temp_tile" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView style="@style/WidgetHeading" android:text="OUT TEMP" />
-            <TextView android:id="@+id/widget_outdoor_temp" style="@style/WidgetValue" android:text="--" android:textColor="#FFBE5C" />
+            <TextView style="@style/WidgetHeading" android:text="@string/outside_temperature_short" />
+            <TextView android:id="@+id/widget_outdoor_temp" style="@style/WidgetValue" android:text="@string/no_value" android:textColor="#FFBE5C" />
         </LinearLayout>
         <LinearLayout android:id="@+id/widget_outdoor_humidity_tile" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView style="@style/WidgetHeading" android:text="OUT HUMID" />
-            <TextView android:id="@+id/widget_outdoor_humidity" style="@style/WidgetValue" android:text="--" android:textColor="#74DED3" />
+            <TextView style="@style/WidgetHeading" android:text="@string/outside_humidity_short" />
+            <TextView android:id="@+id/widget_outdoor_humidity" style="@style/WidgetValue" android:text="@string/no_value" android:textColor="#74DED3" />
         </LinearLayout>
     </LinearLayout>
-    <ImageView android:id="@+id/widget_graph" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:contentDescription="Recent indoor and outdoor climate graph" android:scaleType="fitXY" android:visibility="gone" />
-    <TextView android:id="@+id/widget_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:maxLines="1" android:text="Waiting for first reading" android:textColor="#70DBB5" android:textSize="11sp" android:shadowColor="#FF000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="2" />
+    <ImageView android:id="@+id/widget_graph" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:contentDescription="@string/climate_graph_description" android:scaleType="fitXY" android:visibility="gone" />
+    <TextView android:id="@+id/widget_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:maxLines="1" android:text="@string/waiting_first_reading" android:textColor="#70DBB5" android:textSize="11sp" android:shadowColor="#FF000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="2" />
 </LinearLayout>

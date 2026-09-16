@@ -16,7 +16,7 @@ object WeatherClient {
         val endpoint = "https://api.open-meteo.com/v1/forecast" +
             "?latitude=${location.latitude}&longitude=${location.longitude}" +
             "&current=temperature_2m,relative_humidity_2m" +
-            "&timezone=America%2FToronto"
+            "&timezone=auto"
         val connection = URL(endpoint).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 12_000

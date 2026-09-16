@@ -10,7 +10,7 @@ object CsvExporter {
         val file = File(directory, name)
         file.bufferedWriter().use { writer ->
             writer.appendLine(
-                "timestamp_utc,timestamp_ms,source,temperature_c,humidity_percent," +
+                "timestamp_utc,timestamp_ms,source,device_id,temperature_c,humidity_percent," +
                     "heating_setpoint_c,cooling_setpoint_c,system_mode,running_state," +
                     "hold_state,change_source,eco_state"
             )
@@ -20,6 +20,7 @@ object CsvExporter {
                         Instant.ofEpochMilli(reading.timestampMs).toString(),
                         reading.timestampMs.toString(),
                         reading.source,
+                        reading.deviceId.orEmpty(),
                         reading.temperatureC?.toString().orEmpty(),
                         reading.humidityPercent?.toString().orEmpty(),
                         reading.heatingSetpointC?.toString().orEmpty(),

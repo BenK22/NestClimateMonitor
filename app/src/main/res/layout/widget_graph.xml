@@ -9,6 +9,6 @@
         android:id="@+id/graph_widget_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:contentDescription="Indoor and outdoor climate history"
+        android:contentDescription="@string/climate_history_description"
         android:scaleType="fitXY" />
 </FrameLayout>

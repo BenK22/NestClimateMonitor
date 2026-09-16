@@ -5,8 +5,8 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class ReadingStore(context: Context) :
-    SQLiteOpenHelper(context, "readings.db", null, DATABASE_VERSION) {
+class ReadingStore(context: Context, private val databaseName: String = "readings.db") :
+    SQLiteOpenHelper(context, databaseName, null, DATABASE_VERSION) {
     private val appContext = context.applicationContext
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -16,6 +16,7 @@ class ReadingStore(context: Context) :
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp_ms INTEGER NOT NULL,
                 source TEXT NOT NULL,
+                device_id TEXT,
                 temperature_c REAL,
                 humidity_percent REAL,
                 heating_setpoint_c REAL,
@@ -41,12 +42,14 @@ class ReadingStore(context: Context) :
             db.execSQL("ALTER TABLE readings ADD COLUMN change_source TEXT")
             db.execSQL("ALTER TABLE readings ADD COLUMN eco_state TEXT")
         }
+        if (oldVersion < 3) db.execSQL("ALTER TABLE readings ADD COLUMN device_id TEXT")
     }
 
     fun insert(reading: Reading) {
         val values = ContentValues().apply {
             put("timestamp_ms", reading.timestampMs)
             put("source", reading.source)
+            put("device_id", reading.deviceId)
             reading.temperatureC?.let { put("temperature_c", it) } ?: putNull("temperature_c")
             reading.humidityPercent?.let { put("humidity_percent", it) }
                 ?: putNull("humidity_percent")
@@ -96,7 +99,7 @@ class ReadingStore(context: Context) :
         readableDatabase.query(
             "readings",
             arrayOf(
-                "timestamp_ms", "source", "temperature_c", "humidity_percent",
+                "timestamp_ms", "source", "device_id", "temperature_c", "humidity_percent",
                 "heating_setpoint_c", "cooling_setpoint_c", "system_mode",
                 "running_state", "hold_state", "change_source", "eco_state",
             ),
@@ -111,15 +114,16 @@ class ReadingStore(context: Context) :
                 result += Reading(
                     timestampMs = cursor.getLong(0),
                     source = cursor.getString(1),
-                    temperatureC = if (cursor.isNull(2)) null else cursor.getDouble(2),
-                    humidityPercent = if (cursor.isNull(3)) null else cursor.getDouble(3),
-                    heatingSetpointC = if (cursor.isNull(4)) null else cursor.getDouble(4),
-                    coolingSetpointC = if (cursor.isNull(5)) null else cursor.getDouble(5),
-                    systemMode = if (cursor.isNull(6)) null else cursor.getString(6),
-                    runningState = if (cursor.isNull(7)) null else cursor.getString(7),
-                    holdState = if (cursor.isNull(8)) null else cursor.getString(8),
-                    changeSource = if (cursor.isNull(9)) null else cursor.getString(9),
-                    ecoState = if (cursor.isNull(10)) null else cursor.getString(10),
+                    deviceId = if (cursor.isNull(2)) null else cursor.getString(2),
+                    temperatureC = if (cursor.isNull(3)) null else cursor.getDouble(3),
+                    humidityPercent = if (cursor.isNull(4)) null else cursor.getDouble(4),
+                    heatingSetpointC = if (cursor.isNull(5)) null else cursor.getDouble(5),
+                    coolingSetpointC = if (cursor.isNull(6)) null else cursor.getDouble(6),
+                    systemMode = if (cursor.isNull(7)) null else cursor.getString(7),
+                    runningState = if (cursor.isNull(8)) null else cursor.getString(8),
+                    holdState = if (cursor.isNull(9)) null else cursor.getString(9),
+                    changeSource = if (cursor.isNull(10)) null else cursor.getString(10),
+                    ecoState = if (cursor.isNull(11)) null else cursor.getString(11),
                 )
             }
         }
@@ -130,12 +134,26 @@ class ReadingStore(context: Context) :
         writableDatabase.delete("readings", null, null)
     }
 
+    fun insertAll(readings: List<Reading>) = writableDatabase.inTransaction {
+        readings.forEach(::insert)
+    }
+
+    private inline fun SQLiteDatabase.inTransaction(block: () -> Unit) {
+        beginTransaction()
+        try {
+            block()
+            setTransactionSuccessful()
+        } finally {
+            endTransaction()
+        }
+    }
+
     fun count(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM readings", null).use { cursor ->
         cursor.moveToFirst()
         cursor.getLong(0)
     }
 
-    fun databaseSizeBytes(): Long = appContext.getDatabasePath("readings.db").length()
+    fun databaseSizeBytes(): Long = appContext.getDatabasePath(databaseName).length()
 
     fun deleteBefore(timestampMs: Long): Int = writableDatabase.delete(
         "readings",
@@ -144,6 +162,6 @@ class ReadingStore(context: Context) :
     )
 
     private companion object {
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 3
     }
 }

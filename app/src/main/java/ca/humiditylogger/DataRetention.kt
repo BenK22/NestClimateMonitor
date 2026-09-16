@@ -16,7 +16,9 @@ object DataRetention {
             .apply()
     }
 
-    fun apply(context: Context, store: ReadingStore) {
-        if (isOneYear(context)) store.deleteBefore(System.currentTimeMillis() - YEAR_MS)
+    fun apply(context: Context, store: ReadingStore, nowMs: Long = System.currentTimeMillis()) {
+        if (isOneYear(context)) store.deleteBefore(cutoff(nowMs))
     }
+
+    internal fun cutoff(nowMs: Long): Long = nowMs - YEAR_MS
 }

@@ -55,17 +55,7 @@ object HumidityAlerts {
         val indoor = store.recent(200).filter { ThermostatSelection.matches(context, it) }
             .filter { it.humidityPercent != null }
         val latest = indoor.lastOrNull() ?: return
-        val durationMs = settings.durationMinutes * 60_000L
-        val cutoff = latest.timestampMs - durationMs
-        val window = indoor.filter { it.timestampMs >= cutoff }
-        val coversDuration = window.firstOrNull()?.timestampMs?.let {
-            latest.timestampMs - it >= durationMs - SAMPLE_INTERVAL_MS
-        } == true
-        val state = when {
-            coversDuration && window.all { it.humidityPercent!! >= settings.high } -> "high"
-            coversDuration && window.all { it.humidityPercent!! <= settings.low } -> "low"
-            else -> "normal"
-        }
+        val state = determineState(indoor, settings)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val previous = prefs.getString("active_state", "normal")
         if (state == "normal") {
@@ -105,6 +95,20 @@ object HumidityAlerts {
     fun canNotify(context: Context): Boolean =
         Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    internal fun determineState(readings: List<Reading>, settings: Settings): String {
+        val latest = readings.lastOrNull() ?: return "normal"
+        val durationMs = settings.durationMinutes * 60_000L
+        val window = readings.filter { it.timestampMs >= latest.timestampMs - durationMs }
+        val coversDuration = window.firstOrNull()?.timestampMs?.let {
+            latest.timestampMs - it >= durationMs - SAMPLE_INTERVAL_MS
+        } == true
+        return when {
+            coversDuration && window.all { it.humidityPercent != null && it.humidityPercent >= settings.high } -> "high"
+            coversDuration && window.all { it.humidityPercent != null && it.humidityPercent <= settings.low } -> "low"
+            else -> "normal"
+        }
+    }
 
     private fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
