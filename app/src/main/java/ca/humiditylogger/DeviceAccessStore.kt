@@ -72,7 +72,11 @@ class DeviceAccessStore(context: Context) {
         require(normalized.endsWith(".apps.googleusercontent.com")) {
             "Enter a valid OAuth Client ID."
         }
-        val clientChanged = configuration().clientId != normalized
+        val previous = configuration()
+        val clientChanged = previous.clientId != normalized
+        require(!clientSecret.isNullOrBlank() || previous.hasClientSecret && !clientChanged) {
+            "OAuth Client Secret is required."
+        }
         prefs.edit()
             .putString(KEY_CLIENT_ID, normalized)
             .apply {

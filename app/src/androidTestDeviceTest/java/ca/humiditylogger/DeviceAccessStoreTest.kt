@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,6 +65,16 @@ class DeviceAccessStoreTest {
         assertTrue(store.isConfigured())
         assertEquals(CLIENT_SECRET, store.clientSecret())
         assertFalse(store.isConnected())
+    }
+
+    @Test
+    fun oauthSectionRequiresASecretOnFirstSave() {
+        try {
+            store.saveOAuthCredentials(CLIENT_ID, null)
+            fail("Expected the missing secret to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertEquals("OAuth Client Secret is required.", expected.message)
+        }
     }
 
     private companion object {

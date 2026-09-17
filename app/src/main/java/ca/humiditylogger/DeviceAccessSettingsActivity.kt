@@ -3,6 +3,7 @@ package ca.humiditylogger
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -17,6 +18,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -32,6 +34,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private lateinit var completeButton: Button
     private lateinit var testButton: Button
     private lateinit var disconnectButton: Button
+    private lateinit var oauthIndicator: TextView
+    private lateinit var projectIndicator: TextView
+    private lateinit var connectionIndicator: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +79,10 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         }
         content.addView(status, matchWrap(bottom = 16))
 
-        content.addView(sectionTitle("OAuth credentials"))
+        sectionHeader("1. OAuth credentials").also { (view, indicator) ->
+            oauthIndicator = indicator
+            content.addView(view)
+        }
         content.addView(helpText("Create a Web application client in Google Auth Platform. The client secret is encrypted with Android Keystore and never exported."))
         clientId = field("Web OAuth Client ID", config.clientId)
         content.addView(clientId, matchWrap(bottom = 10))
@@ -86,19 +94,25 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(clientSecret, matchWrap(bottom = 10))
         val saveOAuthButton = actionButton("Save OAuth credentials", secondary = true)
         content.addView(saveOAuthButton, matchWrap(bottom = 10))
-        val oauthClientsButton = actionButton("Manage OAuth clients", secondary = true)
-        content.addView(oauthClientsButton, matchWrap(bottom = 20))
+        val oauthClientsLink = externalLink("Open Google Auth Platform ↗")
+        content.addView(oauthClientsLink, matchWrap(bottom = 20))
 
-        content.addView(sectionTitle("Device Access project"))
+        sectionHeader("2. Device Access project").also { (view, indicator) ->
+            projectIndicator = indicator
+            content.addView(view)
+        }
         content.addView(helpText("Create or edit the Nest Device Access project using the OAuth Client ID above. Its Project ID is different from the Google Cloud project ID."))
         projectId = field("Device Access Project ID", config.projectId)
         content.addView(projectId, matchWrap(bottom = 10))
         val saveProjectButton = actionButton("Save project ID", secondary = true)
         content.addView(saveProjectButton, matchWrap(bottom = 10))
-        val deviceAccessConsoleButton = actionButton("Open Device Access Console", secondary = true)
-        content.addView(deviceAccessConsoleButton, matchWrap(bottom = 20))
+        val deviceAccessConsoleLink = externalLink("Open Nest Device Access Console ↗")
+        content.addView(deviceAccessConsoleLink, matchWrap(bottom = 20))
 
-        content.addView(sectionTitle("Connect Nest"))
+        sectionHeader("3. Connect Nest").also { (view, indicator) ->
+            connectionIndicator = indicator
+            content.addView(view)
+        }
         content.addView(helpText("1. Open Google authorization.\n2. Allow access to your home and thermostat.\n3. At the Google page, copy the complete address from the browser or its code value.\n4. Return here and paste it below."))
         authorizeButton = actionButton("Open Google authorization")
         content.addView(authorizeButton, matchWrap(bottom = 10))
@@ -120,13 +134,13 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         saveProjectButton.setOnClickListener {
             runCatching(::saveProjectId).onFailure(::showError)
         }
-        deviceAccessConsoleButton.setOnClickListener {
+        deviceAccessConsoleLink.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DEVICE_ACCESS_CONSOLE_URL)))
         }
         saveOAuthButton.setOnClickListener {
             runCatching(::saveOAuthCredentials).onFailure(::showError)
         }
-        oauthClientsButton.setOnClickListener {
+        oauthClientsLink.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
         }
         authorizeButton.setOnClickListener {
@@ -148,7 +162,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
 
     private fun saveProjectId() {
         store.saveProjectId(projectId.text.toString())
-        status.text = "Device Access Project ID saved."
+        status.text = "Device Access Project ID saved locally."
+        Toast.makeText(this, "Project ID saved", Toast.LENGTH_SHORT).show()
+        renderIndicators()
         renderButtons()
     }
 
@@ -160,6 +176,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         clientSecret.setText("")
         clientSecret.hint = "Client Secret (saved — leave blank to keep)"
         status.text = "OAuth credentials saved securely."
+        Toast.makeText(this, "OAuth credentials saved", Toast.LENGTH_SHORT).show()
+        renderIndicators()
         renderButtons()
     }
 
@@ -177,6 +195,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             result.onSuccess { readings ->
                     authorizationCode.setText("")
                     chooseThermostat(readings)
+                    renderIndicators()
                     LoggerScheduler.refreshNow(this@DeviceAccessSettingsActivity)
                 }
                 .onFailure(::showError)
@@ -260,7 +279,22 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         if (::clientId.isInitialized && !clientId.hasFocus() && clientId.text.isBlank()) {
             clientId.setText(config.clientId)
         }
+        renderIndicators()
         renderButtons()
+    }
+
+    private fun renderIndicators() {
+        if (!::oauthIndicator.isInitialized) return
+        val config = store.configuration()
+        setIndicator(oauthIndicator, config.clientId.isNotBlank() && config.hasClientSecret)
+        setIndicator(projectIndicator, config.projectId.isNotBlank())
+        setIndicator(connectionIndicator, store.isConnected())
+    }
+
+    private fun setIndicator(view: TextView, complete: Boolean) {
+        view.text = if (complete) "✓" else "✕"
+        view.setTextColor(if (complete) COMPLETE else INCOMPLETE)
+        view.contentDescription = if (complete) "Complete" else "Not complete"
     }
 
     private fun renderButtons() {
@@ -280,7 +314,10 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     }
 
     private fun showError(error: Throwable) {
-        status.text = error.message ?: "Device Access request failed."
+        val message = error.message ?: "Device Access request failed."
+        status.text = message
+        renderIndicators()
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun field(hint: String, value: String, secret: Boolean = false, multiline: Boolean = false) =
@@ -321,6 +358,38 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             )
         }
 
+    private fun externalLink(label: String) = TextView(this).apply {
+        text = label
+        textSize = 15f
+        setTypeface(typeface, Typeface.BOLD)
+        setTextColor(ACCENT)
+        paintFlags = paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        setPadding(dp(4), dp(8), dp(4), dp(8))
+        isClickable = true
+        isFocusable = true
+        contentDescription = "$label. Opens an external website."
+    }
+
+    private fun sectionHeader(label: String): Pair<LinearLayout, TextView> {
+        val indicator = TextView(this).apply {
+            textSize = 21f
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(this@DeviceAccessSettingsActivity).apply {
+                text = label
+                textSize = 18f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(TEXT_PRIMARY)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(indicator, LinearLayout.LayoutParams(dp(32), ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        return row to indicator
+    }
+
     private fun sectionTitle(label: String) = TextView(this).apply {
         text = label
         textSize = 18f
@@ -358,6 +427,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val TEXT_MUTED = Color.rgb(113, 137, 128)
         val ACCENT = Color.rgb(112, 219, 181)
         val DESTRUCTIVE = Color.rgb(166, 55, 55)
+        val COMPLETE = Color.rgb(112, 219, 181)
+        val INCOMPLETE = Color.rgb(255, 111, 97)
         const val DEVICE_ACCESS_CONSOLE_URL = "https://console.nest.google.com/device-access"
         const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
     }
