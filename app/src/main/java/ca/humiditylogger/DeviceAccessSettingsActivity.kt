@@ -87,7 +87,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         )
         content.addView(clientSecret, matchWrap(bottom = 10))
         val saveButton = actionButton("Save credentials", secondary = true)
-        content.addView(saveButton, matchWrap(bottom = 20))
+        content.addView(saveButton, matchWrap(bottom = 10))
+        val oauthClientsButton = actionButton("Manage OAuth clients", secondary = true)
+        content.addView(oauthClientsButton, matchWrap(bottom = 20))
 
         content.addView(sectionTitle("Connect Nest"))
         content.addView(helpText("1. Open Google authorization.\n2. Allow access to your home and thermostat.\n3. At the Google page, copy the complete address from the browser or its code value.\n4. Return here and paste it below."))
@@ -109,6 +111,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(doneButton)
 
         saveButton.setOnClickListener { saveCredentials() }
+        oauthClientsButton.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
+        }
         authorizeButton.setOnClickListener {
             runCatching {
                 saveCredentials(showSuccess = false)
@@ -330,5 +335,6 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val TEXT_MUTED = Color.rgb(113, 137, 128)
         val ACCENT = Color.rgb(112, 219, 181)
         val DESTRUCTIVE = Color.rgb(166, 55, 55)
+        const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
     }
 }
