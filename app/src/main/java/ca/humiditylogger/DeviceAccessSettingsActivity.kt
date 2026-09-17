@@ -74,10 +74,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         }
         content.addView(status, matchWrap(bottom = 16))
 
-        content.addView(sectionTitle("Google credentials"))
-        content.addView(helpText("Stored only on this phone. The client secret and tokens are encrypted with Android Keystore and are never exported."))
-        projectId = field("Device Access Project ID", config.projectId)
-        content.addView(projectId, matchWrap(bottom = 10))
+        content.addView(sectionTitle("OAuth credentials"))
+        content.addView(helpText("Create a Web application client in Google Auth Platform. The client secret is encrypted with Android Keystore and never exported."))
         clientId = field("Web OAuth Client ID", config.clientId)
         content.addView(clientId, matchWrap(bottom = 10))
         clientSecret = field(
@@ -86,10 +84,19 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             secret = true,
         )
         content.addView(clientSecret, matchWrap(bottom = 10))
-        val saveButton = actionButton("Save credentials", secondary = true)
-        content.addView(saveButton, matchWrap(bottom = 10))
+        val saveOAuthButton = actionButton("Save OAuth credentials", secondary = true)
+        content.addView(saveOAuthButton, matchWrap(bottom = 10))
         val oauthClientsButton = actionButton("Manage OAuth clients", secondary = true)
         content.addView(oauthClientsButton, matchWrap(bottom = 20))
+
+        content.addView(sectionTitle("Device Access project"))
+        content.addView(helpText("Create or edit the Nest Device Access project using the OAuth Client ID above. Its Project ID is different from the Google Cloud project ID."))
+        projectId = field("Device Access Project ID", config.projectId)
+        content.addView(projectId, matchWrap(bottom = 10))
+        val saveProjectButton = actionButton("Save project ID", secondary = true)
+        content.addView(saveProjectButton, matchWrap(bottom = 10))
+        val deviceAccessConsoleButton = actionButton("Open Device Access Console", secondary = true)
+        content.addView(deviceAccessConsoleButton, matchWrap(bottom = 20))
 
         content.addView(sectionTitle("Connect Nest"))
         content.addView(helpText("1. Open Google authorization.\n2. Allow access to your home and thermostat.\n3. At the Google page, copy the complete address from the browser or its code value.\n4. Return here and paste it below."))
@@ -110,13 +117,20 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val doneButton = actionButton("Done")
         content.addView(doneButton)
 
-        saveButton.setOnClickListener { saveCredentials() }
+        saveProjectButton.setOnClickListener {
+            runCatching(::saveProjectId).onFailure(::showError)
+        }
+        deviceAccessConsoleButton.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DEVICE_ACCESS_CONSOLE_URL)))
+        }
+        saveOAuthButton.setOnClickListener {
+            runCatching(::saveOAuthCredentials).onFailure(::showError)
+        }
         oauthClientsButton.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
         }
         authorizeButton.setOnClickListener {
             runCatching {
-                saveCredentials(showSuccess = false)
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DeviceAccessClient(this).authorizationUrl())))
             }.onFailure(::showError)
         }
@@ -132,21 +146,26 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun saveCredentials(showSuccess: Boolean = true) {
-        store.saveConfiguration(
-            projectId.text.toString(),
+    private fun saveProjectId() {
+        store.saveProjectId(projectId.text.toString())
+        status.text = "Device Access Project ID saved."
+        renderButtons()
+    }
+
+    private fun saveOAuthCredentials() {
+        store.saveOAuthCredentials(
             clientId.text.toString(),
             clientSecret.text.toString().takeIf { it.isNotBlank() },
         )
         clientSecret.setText("")
         clientSecret.hint = "Client Secret (saved — leave blank to keep)"
-        if (showSuccess) status.text = "Credentials saved securely. Continue with Google authorization."
+        status.text = "OAuth credentials saved securely."
         renderButtons()
     }
 
     private fun completeConnection() {
-        runCatching { saveCredentials(showSuccess = false) }.onFailure {
-            showError(it)
+        if (!store.isConfigured()) {
+            showError(IllegalStateException("Save the project ID and OAuth credentials first."))
             return
         }
         setBusy(true, "Exchanging the authorization code with Google…")
@@ -235,8 +254,12 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             store.isConfigured() -> "Credentials saved. Complete Google authorization to connect Nest."
             else -> "Not configured"
         }
-        if (::projectId.isInitialized && !projectId.hasFocus()) projectId.setText(config.projectId)
-        if (::clientId.isInitialized && !clientId.hasFocus()) clientId.setText(config.clientId)
+        if (::projectId.isInitialized && !projectId.hasFocus() && projectId.text.isBlank()) {
+            projectId.setText(config.projectId)
+        }
+        if (::clientId.isInitialized && !clientId.hasFocus() && clientId.text.isBlank()) {
+            clientId.setText(config.clientId)
+        }
         renderButtons()
     }
 
@@ -335,6 +358,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val TEXT_MUTED = Color.rgb(113, 137, 128)
         val ACCENT = Color.rgb(112, 219, 181)
         val DESTRUCTIVE = Color.rgb(166, 55, 55)
+        const val DEVICE_ACCESS_CONSOLE_URL = "https://console.nest.google.com/device-access"
         const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
     }
 }

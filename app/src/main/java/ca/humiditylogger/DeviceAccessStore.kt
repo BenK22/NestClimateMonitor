@@ -55,6 +55,36 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    fun saveProjectId(projectId: String) {
+        val normalized = projectId.trim()
+        require(normalized.isNotBlank()) { "Device Access Project ID is required." }
+        val changed = configuration().projectId != normalized
+        prefs.edit()
+            .putString(KEY_PROJECT_ID, normalized)
+            .apply {
+                if (changed) clearConnectionValues()
+            }
+            .apply()
+    }
+
+    fun saveOAuthCredentials(clientId: String, clientSecret: String?) {
+        val normalized = clientId.trim()
+        require(normalized.endsWith(".apps.googleusercontent.com")) {
+            "Enter a valid OAuth Client ID."
+        }
+        val clientChanged = configuration().clientId != normalized
+        prefs.edit()
+            .putString(KEY_CLIENT_ID, normalized)
+            .apply {
+                if (clientChanged || !clientSecret.isNullOrBlank()) clearConnectionValues()
+                if (clientChanged && clientSecret.isNullOrBlank()) remove(KEY_CLIENT_SECRET)
+                if (!clientSecret.isNullOrBlank()) {
+                    putString(KEY_CLIENT_SECRET, encrypt(clientSecret.trim()))
+                }
+            }
+            .apply()
+    }
+
     fun clientSecret(): String = decryptRequired(KEY_CLIENT_SECRET, "OAuth Client Secret")
 
     fun saveTokens(accessToken: String, expiresAtMs: Long, refreshToken: String? = null) {
@@ -112,6 +142,13 @@ class DeviceAccessStore(context: Context) {
     private fun decryptRequired(key: String, label: String): String {
         val encrypted = prefs.getString(key, null) ?: error("$label is not configured.")
         return decrypt(encrypted)
+    }
+
+    private fun android.content.SharedPreferences.Editor.clearConnectionValues() {
+        remove(KEY_ACCESS_TOKEN)
+        remove(KEY_ACCESS_TOKEN_EXPIRY)
+        remove(KEY_REFRESH_TOKEN)
+        remove(KEY_DEVICE_ID)
     }
 
     private fun encrypt(value: String): String {

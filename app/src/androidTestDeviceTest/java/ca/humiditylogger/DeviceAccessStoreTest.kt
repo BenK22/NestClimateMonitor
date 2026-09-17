@@ -52,6 +52,20 @@ class DeviceAccessStoreTest {
         assertFalse(store.configuration().hasClientSecret)
     }
 
+    @Test
+    fun projectAndOAuthSectionsSaveIndependently() {
+        store.saveProjectId(PROJECT_ID)
+        assertFalse(store.isConfigured())
+
+        store.saveOAuthCredentials(CLIENT_ID, CLIENT_SECRET)
+        assertTrue(store.isConfigured())
+
+        store.saveProjectId("different-project")
+        assertTrue(store.isConfigured())
+        assertEquals(CLIENT_SECRET, store.clientSecret())
+        assertFalse(store.isConnected())
+    }
+
     private companion object {
         const val PROJECT_ID = "00000000-0000-0000-0000-000000000000"
         const val CLIENT_ID = "123-example.apps.googleusercontent.com"
