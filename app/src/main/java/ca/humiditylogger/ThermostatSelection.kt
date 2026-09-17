@@ -23,10 +23,15 @@ object ThermostatSelection {
         }.apply()
     }
 
-    fun matches(context: Context, reading: Reading): Boolean =
-        !WeatherClient.isOutdoor(reading.source) && matchesSelection(
-            selectedSource(context), selectedDeviceId(context), reading
-        )
+    fun matches(context: Context, reading: Reading): Boolean {
+        if (WeatherClient.isOutdoor(reading.source)) return false
+        val deviceAccess = DeviceAccessStore(context)
+        if (deviceAccess.isConnected() && reading.deviceId?.startsWith("enterprises/") == true) {
+            val deviceId = deviceAccess.selectedDeviceId()
+            return deviceId == null || reading.deviceId == deviceId
+        }
+        return matchesSelection(selectedSource(context), selectedDeviceId(context), reading)
+    }
 
     internal fun matchesSelection(source: String?, deviceId: String?, reading: Reading): Boolean =
         source == null || if (deviceId != null && reading.deviceId != null) {

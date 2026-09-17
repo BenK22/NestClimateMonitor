@@ -157,6 +157,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun updatePermissionAndSchedule() {
+        if (DeviceAccessStore(this).isConnected()) {
+            if (LoggerScheduler.isEnabled(this)) {
+                LoggerScheduler.start(this)
+                LoggerScheduler.catchUpIfOverdue(this)
+                status.text = LoggerScheduler.status(this)
+                    ?: "Nest Device Access background logging is active"
+            } else {
+                status.text = "15-minute background logging is disabled"
+            }
+            return
+        }
         runCatching { reader.permissionState() }.onSuccess { state ->
             val granted = state == PermissionsState.GRANTED
             homePermissionGranted = granted
@@ -524,9 +535,25 @@ class MainActivity : ComponentActivity() {
             "Google Home access",
             if (homePermissionGranted) "Connected" else "Not connected",
         )
+        val deviceAccessStore = DeviceAccessStore(this)
+        val (deviceAccessRow, _) = clickableRow(
+            "Nest Device Access",
+            when {
+                deviceAccessStore.isConnected() -> "Connected — used for background readings"
+                deviceAccessStore.isConfigured() -> "Credentials saved — authorization required"
+                else -> "Not configured"
+            },
+        )
         val (setupRow, _) = clickableRow("Setup guide", "Connection, logging, and widgets")
         panel.addView(
             setupRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) },
+        )
+        panel.addView(
+            deviceAccessRow,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -541,7 +568,7 @@ class MainActivity : ComponentActivity() {
         )
         val selectedThermostat = ThermostatSelection.selectedSource(this)
         val (thermostatRow, _) = clickableRow(
-            "Indoor device",
+            if (deviceAccessStore.isConnected()) "Google Home fallback device" else "Indoor device",
             selectedThermostat ?: "All compatible devices",
         )
         panel.addView(
@@ -619,6 +646,10 @@ class MainActivity : ComponentActivity() {
         googleHomeRow.setOnClickListener {
             dialog.dismiss()
             requestHomePermission()
+        }
+        deviceAccessRow.setOnClickListener {
+            dialog.dismiss()
+            startActivity(Intent(this, DeviceAccessSettingsActivity::class.java))
         }
         setupRow.setOnClickListener {
             dialog.dismiss()
@@ -856,15 +887,15 @@ class MainActivity : ComponentActivity() {
         showStyledDialog(
             title = "Set up Home Climate Monitor",
             message =
-                "1. Connect Google Home and choose the home that contains your thermostat.\n\n" +
+                "1. Open Nest Device Access, enter your project credentials, and connect your thermostat.\n\n" +
                     "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery.\n\n" +
-                    "3. Choose an indoor device and outdoor location in Settings.\n\n" +
+                    "3. Choose an outdoor location. Google Home access is an optional foreground fallback.\n\n" +
                     "4. Optional: add a climate or graph widget from your launcher.\n\n" +
                     "Sampling health in Settings shows the latest attempt, success, timing, and battery policy.",
-            neutralLabel = "Connect Home",
+            neutralLabel = "Device Access",
             negativeLabel = "Later",
             positiveLabel = "Done",
-            onNeutral = { requestHomePermission() },
+            onNeutral = { startActivity(Intent(this, DeviceAccessSettingsActivity::class.java)) },
             onPositive = {
                 getSharedPreferences(SETUP_PREFS, MODE_PRIVATE).edit()
                     .putBoolean(KEY_SETUP_COMPLETE, true).apply()

@@ -30,64 +30,99 @@ class SamplingWorker(
                 return Result.success()
             }
 
-            val keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java)
-            val powerManager = applicationContext.getSystemService(PowerManager::class.java)
-            if (powerManager?.isInteractive == false || keyguardManager?.isDeviceLocked == true) {
-                val weatherStatus = runCatching {
-                    store.insert(WeatherClient.fetchCurrent(applicationContext))
-                    " Outdoor weather saved."
+            val deviceAccessStore = DeviceAccessStore(applicationContext)
+            val indoorReadings: List<Reading>
+            val indoorDiagnostics: List<String>
+            if (deviceAccessStore.isConnected()) {
+                val available = runCatching {
+                    DeviceAccessClient(applicationContext).thermostats()
                 }.getOrElse { error ->
-                    " Outdoor weather failed: ${error.message}."
+                    val weatherStatus = runCatching {
+                        store.insert(WeatherClient.fetchCurrent(applicationContext))
+                        " Outdoor weather saved."
+                    }.getOrElse { weatherError ->
+                        " Outdoor weather failed: ${weatherError.message}."
+                    }
+                    LoggerScheduler.recordResult(
+                        applicationContext,
+                        "Nest Device Access failed: ${error.message ?: error.javaClass.simpleName}.$weatherStatus",
+                        listOf("Open Settings → Nest Device Access to test or reconnect."),
+                    )
+                    DataRetention.apply(applicationContext, store)
+                    ClimateWidgetProvider.updateAll(applicationContext)
+                    return Result.success()
                 }
-                LoggerScheduler.recordResult(
-                    applicationContext,
-                    "Indoor reading unavailable while the screen is off or locked.$weatherStatus",
-                    listOf(
-                        "Google Home's Android API does not return the home structure while the screen is off or locked.",
-                        "An overdue indoor reading will be requested when the app returns to the foreground.",
-                    ),
+                val selectedId = deviceAccessStore.selectedDeviceId()
+                indoorReadings = if (selectedId == null) {
+                    available
+                } else {
+                    available.filter { it.deviceId == selectedId }
+                }
+                indoorDiagnostics = listOf(
+                    "Nest Device Access (Google SDM)",
+                    "${available.size} thermostat${if (available.size == 1) "" else "s"} available",
                 )
-                DataRetention.apply(applicationContext, store)
-                ClimateWidgetProvider.updateAll(applicationContext)
-                return Result.success()
+            } else {
+                val keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java)
+                val powerManager = applicationContext.getSystemService(PowerManager::class.java)
+                if (powerManager?.isInteractive == false || keyguardManager?.isDeviceLocked == true) {
+                    val weatherStatus = runCatching {
+                        store.insert(WeatherClient.fetchCurrent(applicationContext))
+                        " Outdoor weather saved."
+                    }.getOrElse { error ->
+                        " Outdoor weather failed: ${error.message}."
+                    }
+                    LoggerScheduler.recordResult(
+                        applicationContext,
+                        "Connect Nest Device Access for screen-off indoor readings.$weatherStatus",
+                        listOf(
+                            "Google Home's Android API does not return the home structure while the screen is off or locked.",
+                            "Configure Nest Device Access in Settings to remove this limitation.",
+                        ),
+                    )
+                    DataRetention.apply(applicationContext, store)
+                    ClimateWidgetProvider.updateAll(applicationContext)
+                    return Result.success()
+                }
+
+                val reader = HomeReader.getInstance(applicationContext)
+                if (reader.permissionState() != PermissionsState.GRANTED) {
+                    LoggerScheduler.recordResult(
+                        applicationContext,
+                        "Google Home permission is not granted",
+                        emptyList(),
+                    )
+                    return Result.success()
+                }
+                val sample = reader.sample()
+                indoorReadings = ThermostatSelection.filter(applicationContext, sample.readings)
+                indoorDiagnostics = sample.diagnostics
             }
 
-            val reader = HomeReader.getInstance(applicationContext)
-            if (reader.permissionState() != PermissionsState.GRANTED) {
-                LoggerScheduler.recordResult(
-                    applicationContext,
-                    "Google Home permission is not granted",
-                    emptyList(),
-                )
-                Result.success()
-            } else {
-                val sample = reader.sample()
-                val indoorReadings = ThermostatSelection.filter(applicationContext, sample.readings)
-                indoorReadings.forEach(store::insert)
-                val weatherStatus = runCatching {
-                    store.insert(WeatherClient.fetchCurrent(applicationContext))
-                    " Outdoor weather saved."
-                }.getOrElse { error ->
-                    " Outdoor weather failed: ${error.message}."
-                }
-                val status = when {
-                    indoorReadings.any { it.humidityPercent != null } ->
-                        "Saved indoor temperature and humidity.$weatherStatus"
-                    indoorReadings.isNotEmpty() ->
-                        "Saved indoor temperature; no humidity trait.$weatherStatus"
-                    else -> "No indoor climate measurement was returned.$weatherStatus"
-                }
-                LoggerScheduler.recordResult(
-                    applicationContext,
-                    status,
-                    sample.diagnostics,
-                    successfulAtMs = indoorReadings.takeIf { it.isNotEmpty() }?.let { System.currentTimeMillis() },
-                )
-                HumidityAlerts.evaluate(applicationContext, store)
-                DataRetention.apply(applicationContext, store)
-                ClimateWidgetProvider.updateAll(applicationContext)
-                Result.success()
+            indoorReadings.forEach(store::insert)
+            val weatherStatus = runCatching {
+                store.insert(WeatherClient.fetchCurrent(applicationContext))
+                " Outdoor weather saved."
+            }.getOrElse { error ->
+                " Outdoor weather failed: ${error.message}."
             }
+            val status = when {
+                indoorReadings.any { it.humidityPercent != null } ->
+                    "Saved indoor temperature and humidity.$weatherStatus"
+                indoorReadings.isNotEmpty() ->
+                    "Saved indoor temperature; no humidity trait.$weatherStatus"
+                else -> "No indoor climate measurement was returned.$weatherStatus"
+            }
+            LoggerScheduler.recordResult(
+                applicationContext,
+                status,
+                indoorDiagnostics,
+                successfulAtMs = indoorReadings.takeIf { it.isNotEmpty() }?.let { System.currentTimeMillis() },
+            )
+            HumidityAlerts.evaluate(applicationContext, store)
+            DataRetention.apply(applicationContext, store)
+            ClimateWidgetProvider.updateAll(applicationContext)
+            Result.success()
         } catch (error: Exception) {
             LoggerScheduler.recordResult(
                 applicationContext,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Added direct Nest Device Access/SDM authorization and thermostat sampling.
+- Added Android Keystore-backed credential and token storage excluded from backup and screenshots.
+- Added screen-off indoor sampling through SDM with Google Home retained as a foreground fallback.
+- Added thermostat discovery/selection and a dedicated Device Access settings screen.
+
 ## 0.2.0
 
 - Added responsive current-reading and graph-only home-screen widgets.

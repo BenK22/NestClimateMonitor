@@ -1,0 +1,60 @@
+package ca.humiditylogger
+
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class DeviceAccessStoreTest {
+    private lateinit var store: DeviceAccessStore
+
+    @Before
+    fun setUp() {
+        store = DeviceAccessStore(ApplicationProvider.getApplicationContext())
+        store.clearAll()
+    }
+
+    @After
+    fun tearDown() {
+        store.clearAll()
+    }
+
+    @Test
+    fun encryptsAndRestoresSecretAndTokens() {
+        store.saveConfiguration(PROJECT_ID, CLIENT_ID, CLIENT_SECRET)
+        store.saveTokens("access-token", 123456L, "refresh-token")
+
+        assertTrue(store.isConfigured())
+        assertTrue(store.isConnected())
+        assertEquals(CLIENT_SECRET, store.clientSecret())
+        assertEquals("access-token", store.accessToken()?.value)
+        assertEquals("refresh-token", store.refreshToken())
+
+        store.clearConnection()
+        assertTrue(store.isConfigured())
+        assertFalse(store.isConnected())
+        assertNull(store.refreshToken())
+    }
+
+    @Test
+    fun changingClientIdentityRequiresANewSecret() {
+        store.saveConfiguration(PROJECT_ID, CLIENT_ID, CLIENT_SECRET)
+        store.saveConfiguration("different-project", CLIENT_ID, null)
+
+        assertFalse(store.isConfigured())
+        assertFalse(store.configuration().hasClientSecret)
+    }
+
+    private companion object {
+        const val PROJECT_ID = "00000000-0000-0000-0000-000000000000"
+        const val CLIENT_ID = "123-example.apps.googleusercontent.com"
+        const val CLIENT_SECRET = "test-client-secret"
+    }
+}
