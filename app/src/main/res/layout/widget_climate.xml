@@ -24,6 +24,6 @@
             <TextView android:id="@+id/widget_outdoor_humidity" style="@style/WidgetValue" android:text="@string/no_value" android:textColor="#74DED3" />
         </LinearLayout>
     </LinearLayout>
-    <ImageView android:id="@+id/widget_graph" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:contentDescription="@string/climate_graph_description" android:scaleType="fitXY" android:visibility="gone" />
+    <ImageView android:id="@+id/widget_graph" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:contentDescription="@string/climate_graph_description" android:scaleType="fitCenter" android:visibility="gone" />
     <TextView android:id="@+id/widget_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:maxLines="1" android:text="@string/waiting_first_reading" android:textColor="#70DBB5" android:textSize="11sp" android:shadowColor="#FF000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="2" />
 </LinearLayout>

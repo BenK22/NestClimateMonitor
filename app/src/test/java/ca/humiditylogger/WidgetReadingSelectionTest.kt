@@ -36,4 +36,17 @@ class WidgetReadingSelectionTest {
         assertEquals(listOf(20.0, 10.0), result.displayed.mapNotNull(Reading::temperatureC))
         assertEquals(listOf(50.0, 60.0), result.displayed.mapNotNull(Reading::humidityPercent))
     }
+
+    @Test
+    fun newerOutdoorAndTraitlessRowsCannotMaskIndoorFreshness() {
+        val indoor = Reading(1, "Inside", "selected", 20.0, 50.0)
+        val traitless = Reading(2, "Inside", "selected", null, null)
+        val outdoor = Reading(3, "Weather:Current", null, 10.0, 60.0)
+
+        val latest = WidgetReadingSelection.latestIndoorClimate(
+            listOf(indoor, traitless, outdoor),
+        ) { it.deviceId == "selected" }
+
+        assertEquals(indoor, latest)
+    }
 }

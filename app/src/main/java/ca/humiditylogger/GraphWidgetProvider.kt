@@ -28,10 +28,14 @@ class GraphWidgetProvider : AppWidgetProvider() {
             val options = manager.getAppWidgetOptions(id)
             val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)
             val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(80)
+            val contentSize = WidgetGraphSizing.graphOnlyContentSize(widthDp, heightDp)
             val readings = ReadingStore(context).use { it.recent(400) }
             val views = RemoteViews(context.packageName, R.layout.widget_graph).apply {
                 setInt(R.id.graph_widget_root, "setBackgroundResource", WidgetAppearance.background(context, id))
-                setImageViewBitmap(R.id.graph_widget_image, WidgetGraph.render(context, readings, widthDp, heightDp))
+                setImageViewBitmap(
+                    R.id.graph_widget_image,
+                    WidgetGraph.render(context, readings, contentSize.widthDp, contentSize.heightDp),
+                )
                 setOnClickPendingIntent(R.id.graph_widget_root, WidgetAppearance.launchApp(context))
             }
             manager.updateAppWidget(id, views)

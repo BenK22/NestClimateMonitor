@@ -15,11 +15,11 @@ A deliberately small Android logger for Nest Device Access and Google Home APIs.
 - calculates dew point, comfort state, and daily min/average/max summaries;
 - reports delayed or stale samples and supports a unique manual refresh;
 - lets users select a specific compatible indoor device; and
-- shows every returned device type and trait to diagnose whether a Nest thermostat exposes humidity.
+- shows returned climate-device types and traits to diagnose whether a thermostat exposes humidity.
 
 There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Users can select either Nest Device Access or Google Home as the indoor source; Device Access is the default whenever it is connected and no explicit choice has been saved. Nest Device Access works in the background while the display is off. Google Home readings are attempted only while the display is on and the phone is unlocked, although Home Climate Monitor itself does not need to remain open or visible.
 
-The daily chart spans midnight through 11:59 PM in the Toronto time zone. Solid lines are indoor Google Home readings and dashed lines are outdoor weather-model readings. Previous and Next navigate among calendar days; Next is hidden on the current day. The outdoor location is selectable in the app, with St. Catharines, Ontario as the non-personal default. Android geocodes the entered place, and only the resulting coordinates are sent to Open-Meteo; Google Home data is never transmitted.
+The daily chart spans midnight through 11:59 PM in the phone's current time zone. Solid lines are readings from the selected indoor source (Nest Device Access or Google Home), and dashed lines are outdoor weather-model readings. Previous and Next navigate among calendar days; Next is hidden on the current day. The outdoor location is selectable in the app, with St. Catharines, Ontario as the non-personal default. Android geocodes the entered place, and only the resulting coordinates are sent to Open-Meteo; Google Home data is never transmitted.
 
 Outdoor weather data is provided by [Open-Meteo](https://open-meteo.com/) under CC BY 4.0. The free endpoint is intended for non-commercial use; review Open-Meteo's current terms before distributing a commercial build.
 
@@ -70,6 +70,8 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Enable instal
 5. Optionally configure humidity alerts, retention, and home-screen widgets.
 
 All history remains on the phone unless the user explicitly shares a CSV. See [PRIVACY.md](PRIVACY.md).
+
+CSV exports include spreadsheet-safe display columns plus encoded companion columns used by Home Climate Monitor to restore text fields exactly. Older exports without the companion columns remain importable.
 
 ## Publishing this repository
 

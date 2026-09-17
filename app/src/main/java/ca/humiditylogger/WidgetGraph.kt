@@ -11,6 +11,7 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 object WidgetGraph {
     private const val GRAPH_WINDOW_MS = 6L * 60L * 60L * 1000L
@@ -25,11 +26,11 @@ object WidgetGraph {
 
     fun render(context: Context, all: List<Reading>, widthDp: Int, heightDp: Int): Bitmap {
         val density = context.resources.displayMetrics.density
-        val width = (widthDp * density).toInt().coerceIn(360, 1200)
-        val height = (heightDp * density).toInt().coerceIn(130, 750)
+        val width = (widthDp * density).roundToInt().coerceIn(1, 1200)
+        val height = (heightDp * density).roundToInt().coerceIn(1, 750)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val labelSize = (height * 0.095f).coerceIn(16f, 32f)
+        val labelSize = (height * 0.095f).coerceIn(10f, 32f)
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.rgb(205, 220, 214)
             textSize = labelSize
@@ -81,7 +82,10 @@ object WidgetGraph {
             humidityMax = 100.0
         }
 
-        drawLegend(canvas, textPaint, left, right, legendBaseline)
+        val legendWidth = textPaint.measureText("OUT H") * 4f + textPaint.textSize * 4f
+        if (right - left >= legendWidth) {
+            drawLegend(canvas, textPaint, left, right, legendBaseline)
+        }
         for (step in 0..2) {
             val fraction = step / 2f
             val y = floor(bottom - fraction * (bottom - top)) + 0.5f

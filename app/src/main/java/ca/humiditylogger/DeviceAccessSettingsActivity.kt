@@ -308,6 +308,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             val thermostat = readings.single()
             store.setSelectedDeviceId(thermostat.deviceId)
             status.text = "Connected to ${thermostat.source}."
+            renderIndicators()
+            LoggerScheduler.refreshNow(this)
+            ClimateWidgetProvider.updateAll(applicationContext)
             AlertDialog.Builder(this)
                 .setTitle("Thermostat selected")
                 .setMessage("Only one thermostat was found, so ${thermostat.source} was selected automatically.")
@@ -316,17 +319,29 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             return
         }
         val selectedId = store.selectedDeviceId()
+        val duplicateNames = readings.groupingBy(Reading::source).eachCount()
+        val labels = readings.map { reading ->
+            if ((duplicateNames[reading.source] ?: 0) > 1) {
+                "${reading.source} (${reading.deviceId?.takeLast(6) ?: "unknown"})"
+            } else {
+                reading.source
+            }
+        }
         AlertDialog.Builder(this)
-            .setTitle("Choose thermostat")
+            .setTitle("Choose one thermostat")
+            .setMessage("Indoor tiles, graphs, and alerts track one Nest thermostat at a time.")
             .setSingleChoiceItems(
-                readings.map { it.source }.toTypedArray(),
-                readings.indexOfFirst { it.deviceId == selectedId }.coerceAtLeast(0),
+                labels.toTypedArray(),
+                readings.indexOfFirst { it.deviceId == selectedId },
             ) { dialog, which ->
                 store.setSelectedDeviceId(readings[which].deviceId)
                 status.text = "Connected to ${readings[which].source}."
+                renderIndicators()
+                LoggerScheduler.refreshNow(this@DeviceAccessSettingsActivity)
+                ClimateWidgetProvider.updateAll(applicationContext)
                 dialog.dismiss()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Choose later", null)
             .show()
     }
 
@@ -361,6 +376,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private fun renderStatus() {
         val config = store.configuration()
         status.text = when {
+            store.isConnected() && store.selectedDeviceId() == null ->
+                "Nest is authorized. Test the connection and choose one thermostat."
             store.isConnected() && IndoorSourcePreference.selected(this) == IndoorSource.DEVICE_ACCESS ->
                 "Connected to Nest Device Access and selected for indoor readings."
             store.isConnected() ->
@@ -377,7 +394,10 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val config = store.configuration()
         setIndicator(oauthIndicator, config.clientId.isNotBlank() && config.hasClientSecret)
         setIndicator(projectIndicator, config.projectId.isNotBlank())
-        setIndicator(connectionIndicator, store.isConnected())
+        setIndicator(
+            connectionIndicator,
+            store.isConnected() && store.selectedDeviceId() != null,
+        )
     }
 
     private fun setIndicator(view: TextView, complete: Boolean) {

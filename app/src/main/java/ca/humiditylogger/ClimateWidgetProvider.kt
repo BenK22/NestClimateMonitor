@@ -36,12 +36,13 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(48)
             val showOutside = widthDp >= 220
             val showGraph = showOutside && heightDp >= 100
+            val graphSize = WidgetGraphSizing.climateContentSize(widthDp, heightDp)
             val readings = ReadingStore(context).use { it.recent(400) }
             val series = WidgetReadingSelection.select(
                 readings,
                 WeatherLocationStore.get(context).readingSource,
             ) { ThermostatSelection.matches(context, it) }
-            val indoor = series.indoor.lastOrNull()
+            val indoor = WidgetReadingSelection.latestIndoorClimate(series.indoor) { true }
             val outdoor = series.outdoor.lastOrNull()
             val fahrenheit = WidgetGraph.useFahrenheit(context)
             val views = RemoteViews(context.packageName, R.layout.widget_climate).apply {
@@ -55,9 +56,9 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                 setViewVisibility(R.id.widget_graph, if (showGraph) View.VISIBLE else View.GONE)
                 if (showGraph) setImageViewBitmap(
                     R.id.widget_graph,
-                    WidgetGraph.render(context, readings, widthDp, (heightDp * 0.48).roundToInt()),
+                    WidgetGraph.render(context, readings, graphSize.widthDp, graphSize.heightDp),
                 )
-                val latest = listOfNotNull(indoor?.timestampMs, outdoor?.timestampMs).maxOrNull()
+                val latest = indoor?.timestampMs
                 val freshness = WidgetFreshnessPolicy.evaluate(
                     latest,
                     System.currentTimeMillis(),
@@ -67,10 +68,10 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                     R.id.widget_updated,
                     when (freshness) {
                         WidgetFreshness.DISABLED -> latest?.let {
-                            "Logging off · Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}"
+                            "Logging off · Indoor ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}"
                         } ?: "Logging off"
-                        WidgetFreshness.WAITING -> "Waiting for first reading"
-                        else -> "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(latest!!))}"
+                        WidgetFreshness.WAITING -> "Waiting for indoor reading"
+                        else -> "Indoor updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(latest!!))}"
                     },
                 )
                 setTextColor(

@@ -13,4 +13,6 @@ data class Reading(
     val holdState: String? = null,
     val changeSource: String? = null,
     val ecoState: String? = null,
-)
+) {
+    fun hasClimateMeasurement(): Boolean = temperatureC != null || humidityPercent != null
+}

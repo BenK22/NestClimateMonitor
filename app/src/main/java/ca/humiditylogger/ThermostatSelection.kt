@@ -55,8 +55,15 @@ object ThermostatSelection {
         if (projectId.isBlank()) return false
         val resourceName = reading.deviceId ?: return false
         if (!resourceName.startsWith("enterprises/$projectId/devices/")) return false
-        return selectedDeviceId == null || resourceName == selectedDeviceId
+        return selectedDeviceId != null && resourceName == selectedDeviceId
     }
+
+    internal fun selectDeviceAccessReadings(
+        available: List<Reading>,
+        selectedDeviceId: String?,
+    ): List<Reading> = selectedDeviceId?.let { selected ->
+        available.filter { it.deviceId == selected }
+    }.orEmpty()
 
     fun filter(context: Context, readings: List<Reading>): List<Reading> =
         readings.filter { matches(context, it) }

@@ -68,4 +68,25 @@ class CsvImporterTest {
         assertTrue(row.contains("'=IMPORTXML"))
         assertTrue(row.contains(",-5.0,"))
     }
+
+    @Test
+    fun currentExportRoundTripsFormulaLikeAndLiteralApostropheText() {
+        val original = Reading(
+            timestampMs = 1_700_000_000_000,
+            source = "=Dining Room",
+            deviceId = "'+literal-device",
+            temperatureC = 20.0,
+            humidityPercent = 50.0,
+            systemMode = "-HEAT",
+            runningState = "@IDLE",
+            holdState = "+HOLD",
+            changeSource = "'=literal",
+            ecoState = "\tECO",
+        )
+        val csv = CsvExporter.header + "\n" + CsvExporter.row(original)
+
+        val restored = CsvImporter.preview(csv, emptyList()).readings.single()
+
+        assertEquals(original, restored)
+    }
 }

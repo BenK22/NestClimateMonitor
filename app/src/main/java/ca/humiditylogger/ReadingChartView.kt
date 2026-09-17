@@ -22,15 +22,19 @@ class ReadingChartView @JvmOverloads constructor(
     var readings: List<Reading> = emptyList()
         set(value) {
             field = value
+            selectedTimestampMs = retainChartSelection(selectedTimestampMs, value)
+            if (selectedTimestampMs == null) contentDescription = null
             invalidate()
         }
     var dayStartMs: Long = 0L
         set(value) {
+            if (field != value) clearSelection()
             field = value
             invalidate()
         }
     var dayEndMs: Long = 1L
         set(value) {
+            if (field != value) clearSelection()
             field = value
             invalidate()
         }
@@ -53,6 +57,11 @@ class ReadingChartView @JvmOverloads constructor(
     private val tooltipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(230, 7, 13, 12)
         style = Paint.Style.FILL
+    }
+
+    private fun clearSelection() {
+        selectedTimestampMs = null
+        contentDescription = null
     }
 
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -251,3 +260,6 @@ class ReadingChartView @JvmOverloads constructor(
 
     private fun celsiusToFahrenheit(celsius: Double): Double = celsius * 9.0 / 5.0 + 32.0
 }
+
+internal fun retainChartSelection(selectedTimestampMs: Long?, readings: List<Reading>): Long? =
+    selectedTimestampMs?.takeIf { selected -> readings.any { it.timestampMs == selected } }

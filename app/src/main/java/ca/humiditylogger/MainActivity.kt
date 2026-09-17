@@ -196,7 +196,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshUiFromStorage() {
-        val lastSuccessMs = LoggerScheduler.lastSuccessMs(this)
+        val recentReadings = store.recent()
+        val weatherLocation = WeatherLocationStore.get(this)
+        val last = WidgetReadingSelection.latestIndoorClimate(recentReadings) {
+            ThermostatSelection.matches(this, it)
+        }
+        val lastSuccessMs = last?.timestampMs
         val lastError = LoggerScheduler.lastError(this)
         val sampleAge = lastSuccessMs?.let { System.currentTimeMillis() - it }
         status.text = when {
@@ -211,7 +216,14 @@ class MainActivity : ComponentActivity() {
                     DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(lastSuccessMs))
                 }${lastError?.let { "  •  $it" }.orEmpty()}"
             }
-            else -> LoggerScheduler.status(this) ?: "Waiting for the first sample"
+            else -> when {
+                IndoorSourcePreference.selected(this) == IndoorSource.DEVICE_ACCESS &&
+                    DeviceAccessStore(this).isConnected() &&
+                    DeviceAccessStore(this).selectedDeviceId() == null ->
+                    "Choose a Nest thermostat in Settings"
+                lastError != null -> lastError
+                else -> "Waiting for the first selected indoor sample"
+            }
         }
         status.setTextColor(
             when {
@@ -225,9 +237,6 @@ class MainActivity : ComponentActivity() {
             diagnostics.text = climateDiagnosticsOnly(it)
         }
 
-        val recentReadings = store.recent()
-        val weatherLocation = WeatherLocationStore.get(this)
-        val last = recentReadings.lastOrNull { ThermostatSelection.matches(this, it) }
         val outdoorLast = recentReadings.lastOrNull { it.source == weatherLocation.readingSource }
         val dayStart = selectedDay.atStartOfDay(zoneId).toInstant().toEpochMilli()
         val dayEnd = selectedDay.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
@@ -616,7 +625,11 @@ class MainActivity : ComponentActivity() {
         val (thermostatRow, _) = clickableRow(
             if (indoorSource == IndoorSource.DEVICE_ACCESS) "Nest thermostat" else "Google Home device",
             if (indoorSource == IndoorSource.DEVICE_ACCESS) {
-                if (deviceAccessStore.selectedDeviceId() == null) "All Nest thermostats" else "Selected in Device Access"
+                if (deviceAccessStore.selectedDeviceId() == null) {
+                    "Choose one in Device Access"
+                } else {
+                    "Selected in Device Access"
+                }
             } else {
                 selectedThermostat ?: "All compatible devices"
             },

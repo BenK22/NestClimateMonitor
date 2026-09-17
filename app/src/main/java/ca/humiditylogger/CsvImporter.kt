@@ -1,6 +1,7 @@
 package ca.humiditylogger
 
 import java.io.Reader
+import java.util.Base64
 
 object CsvImporter {
     data class Preview(
@@ -29,19 +30,27 @@ object CsvImporter {
         rows.drop(1).filter { row -> row.any { it.isNotBlank() } }.forEach { row ->
             val reading = runCatching {
                 fun value(name: String): String? = indices[name]?.let(row::getOrNull)?.takeIf { it.isNotBlank() }
+                fun textValue(name: String): String? {
+                    val encoded = value("${name}_b64")
+                    return if (encoded != null) {
+                        decodeText(encoded).takeIf { it.isNotBlank() }
+                    } else {
+                        value(name)
+                    }
+                }
                 Reading(
                     timestampMs = value("timestamp_ms")!!.toLong(),
-                    source = value("source")!!,
-                    deviceId = value("device_id"),
+                    source = textValue("source")!!,
+                    deviceId = textValue("device_id"),
                     temperatureC = value("temperature_c")?.toDouble(),
                     humidityPercent = value("humidity_percent")?.toDouble(),
                     heatingSetpointC = value("heating_setpoint_c")?.toDouble(),
                     coolingSetpointC = value("cooling_setpoint_c")?.toDouble(),
-                    systemMode = value("system_mode"),
-                    runningState = value("running_state"),
-                    holdState = value("hold_state"),
-                    changeSource = value("change_source"),
-                    ecoState = value("eco_state"),
+                    systemMode = textValue("system_mode"),
+                    runningState = textValue("running_state"),
+                    holdState = textValue("hold_state"),
+                    changeSource = textValue("change_source"),
+                    ecoState = textValue("eco_state"),
                 )
             }.getOrNull()?.takeIf { isValid(it, nowMs) }
             if (reading == null) {
@@ -123,6 +132,11 @@ object CsvImporter {
 
     private fun validTemperature(value: Double?): Boolean =
         value == null || (value.isFinite() && value in -100.0..100.0)
+
+    private fun decodeText(value: String): String {
+        require(value.startsWith("b64:")) { "Unsupported encoded CSV text." }
+        return String(Base64.getDecoder().decode(value.removePrefix("b64:")), Charsets.UTF_8)
+    }
 
     private fun Int?.orZero(): Int = this ?: 0
 

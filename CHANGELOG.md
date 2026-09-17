@@ -7,6 +7,10 @@
 - Added selectable Nest Device Access and Google Home indoor sources, defaulting to Device Access when connected.
 - Added thermostat discovery/selection and a dedicated Device Access settings screen.
 - Clarified that Google Home requires a screen-on/unlocked phone, while the one-time US$5 Device Access registration enables screen-off background readings.
+- Made freshness indicators track the selected indoor thermostat instead of newer outdoor-only updates.
+- Required an explicit thermostat selection when Device Access returns multiple devices.
+- Improved widget graph sharpness and scaling, chart day-navigation state, and exact CSV backup round trips.
+- Fixed Linux release execution by tracking the Gradle wrapper as executable.
 
 ## 0.2.0
 

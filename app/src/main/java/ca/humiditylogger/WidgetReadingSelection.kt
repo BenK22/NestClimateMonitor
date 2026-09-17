@@ -16,4 +16,9 @@ object WidgetReadingSelection {
         indoor = readings.filter(indoorMatches),
         outdoor = readings.filter { it.source == outdoorSource },
     )
+
+    fun latestIndoorClimate(
+        readings: List<Reading>,
+        indoorMatches: (Reading) -> Boolean,
+    ): Reading? = readings.lastOrNull { indoorMatches(it) && it.hasClimateMeasurement() }
 }

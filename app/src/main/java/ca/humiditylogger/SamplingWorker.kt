@@ -26,7 +26,8 @@ class SamplingWorker(
             val latestIndoorMs = store.recent()
                 .lastOrNull {
                     !WeatherClient.isOutdoor(it.source) &&
-                        ThermostatSelection.matches(applicationContext, it)
+                        ThermostatSelection.matches(applicationContext, it) &&
+                        it.hasClimateMeasurement()
                 }
                 ?.timestampMs
             if (!force && latestIndoorMs != null && isFresh(
@@ -41,6 +42,7 @@ class SamplingWorker(
             val indoorSource = IndoorSourcePreference.selected(applicationContext)
             val indoorReadings: List<Reading>
             val indoorDiagnostics: List<String>
+            var deviceSelectionRequired = false
             if (indoorSource == IndoorSource.DEVICE_ACCESS) {
                 if (!deviceAccessStore.isConnected()) {
                     val weatherStatus = saveOutdoorReading(store)
@@ -66,15 +68,28 @@ class SamplingWorker(
                     ClimateWidgetProvider.updateAll(applicationContext)
                     return Result.success()
                 }
-                val selectedId = deviceAccessStore.selectedDeviceId()
-                indoorReadings = if (selectedId == null) {
-                    available
-                } else {
-                    available.filter { it.deviceId == selectedId }
+                var selectedId = deviceAccessStore.selectedDeviceId()
+                if (selectedId != null && available.none { it.deviceId == selectedId }) {
+                    deviceAccessStore.setSelectedDeviceId(null)
+                    selectedId = null
                 }
+                if (selectedId == null && available.size == 1) {
+                    deviceAccessStore.setSelectedDeviceId(available.single().deviceId)
+                    selectedId = available.single().deviceId
+                }
+                deviceSelectionRequired = selectedId == null && available.size > 1
+                indoorReadings = ThermostatSelection.selectDeviceAccessReadings(
+                    available,
+                    selectedId,
+                )
                 indoorDiagnostics = listOf(
                     "Nest Device Access (Google SDM)",
                     "${available.size} thermostat${if (available.size == 1) "" else "s"} available",
+                    if (deviceSelectionRequired) {
+                        "Choose one thermostat in Settings → Nest Device Access."
+                    } else {
+                        "Selected thermostat ${selectedId?.substringAfterLast('/') ?: "unavailable"}"
+                    },
                 )
             } else {
                 val keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java)
@@ -113,18 +128,13 @@ class SamplingWorker(
 
             indoorReadings.forEach(store::insert)
             val weatherStatus = saveOutdoorReading(store)
-            val status = when {
-                indoorReadings.any { it.humidityPercent != null } ->
-                    "Saved indoor temperature and humidity.$weatherStatus"
-                indoorReadings.isNotEmpty() ->
-                    "Saved indoor temperature; no humidity trait.$weatherStatus"
-                else -> "No indoor climate measurement was returned.$weatherStatus"
-            }
+            val outcome = climateOutcome(indoorReadings, deviceSelectionRequired)
+            val status = "${outcome.status}$weatherStatus"
             LoggerScheduler.recordResult(
                 applicationContext,
                 status,
                 indoorDiagnostics,
-                successfulAtMs = indoorReadings.takeIf { it.isNotEmpty() }?.let { System.currentTimeMillis() },
+                successfulAtMs = outcome.successful.takeIf { it }?.let { System.currentTimeMillis() },
             )
             HumidityAlerts.evaluate(applicationContext, store)
             DataRetention.apply(applicationContext, store)
@@ -165,5 +175,23 @@ class SamplingWorker(
 
         internal fun isFresh(timestampMs: Long, nowMs: Long): Boolean =
             timestampMs <= nowMs && nowMs - timestampMs < LoggerScheduler.SAMPLE_INTERVAL_MS
+
+        internal data class ClimateOutcome(val status: String, val successful: Boolean)
+
+        internal fun climateOutcome(
+            readings: List<Reading>,
+            selectionRequired: Boolean = false,
+        ): ClimateOutcome {
+            val savedTemperature = readings.any { it.temperatureC != null }
+            val savedHumidity = readings.any { it.humidityPercent != null }
+            val status = when {
+                savedTemperature && savedHumidity -> "Saved indoor temperature and humidity."
+                savedTemperature -> "Saved indoor temperature; no humidity trait."
+                savedHumidity -> "Saved indoor humidity; no temperature trait."
+                selectionRequired -> "Choose one Nest thermostat before sampling."
+                else -> "No indoor climate measurement was returned."
+            }
+            return ClimateOutcome(status, savedTemperature || savedHumidity)
+        }
     }
 }
