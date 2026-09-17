@@ -533,7 +533,7 @@ class MainActivity : ComponentActivity() {
         )
         val (googleHomeRow, _) = clickableRow(
             "Google Home access",
-            if (homePermissionGranted) "Connected" else "Not connected",
+            if (homePermissionGranted) "Connected — screen-on fallback" else "Not connected",
         )
         val deviceAccessStore = DeviceAccessStore(this)
         val (deviceAccessRow, _) = clickableRow(
@@ -887,9 +887,9 @@ class MainActivity : ComponentActivity() {
         showStyledDialog(
             title = "Set up Home Climate Monitor",
             message =
-                "1. Open Nest Device Access, enter your project credentials, and connect your thermostat.\n\n" +
+                "1. For reliable background and screen-off readings, register for Nest Device Access (a one-time, non-refundable US$5 Google fee), enter your project credentials, and connect your thermostat.\n\n" +
                     "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery.\n\n" +
-                    "3. Choose an outdoor location. Google Home access is an optional foreground fallback.\n\n" +
+                    "3. Choose an outdoor location. Google Home access is an optional fallback that works only while the display is on and the phone is unlocked; this app does not need to remain visible.\n\n" +
                     "4. Optional: add a climate or graph widget from your launcher.\n\n" +
                     "Sampling health in Settings shows the latest attempt, success, timing, and battery policy.",
             neutralLabel = "Device Access",

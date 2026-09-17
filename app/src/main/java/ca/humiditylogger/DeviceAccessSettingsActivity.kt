@@ -76,7 +76,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             setTextColor(TEXT_PRIMARY)
         })
         content.addView(TextView(this).apply {
-            text = "Direct Nest access for reliable screen-off readings"
+            text = "Reliable screen-off readings • one-time non-refundable US$5 Google fee"
             textSize = 14f
             setTextColor(TEXT_SECONDARY)
             setPadding(0, dp(4), 0, dp(16))
