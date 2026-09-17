@@ -11,6 +11,8 @@ import androidx.work.workDataOf
 import androidx.work.WorkManager
 import androidx.lifecycle.LiveData
 import androidx.work.WorkInfo
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 object LoggerScheduler {
@@ -27,6 +29,7 @@ object LoggerScheduler {
     private const val KEY_RUN_COUNT = "run_count"
     private const val KEY_LAST_DURATION_MS = "last_duration_ms"
     private const val KEY_TOTAL_DURATION_MS = "total_duration_ms"
+    private const val KEY_ERROR_HISTORY = "error_history"
 
     fun start(context: Context) {
         if (!isEnabled(context)) return
@@ -122,6 +125,11 @@ object LoggerScheduler {
 
     fun lastError(context: Context): String? = prefs(context).getString(KEY_LAST_ERROR, null)
 
+    data class SampleError(val timestampMs: Long, val message: String)
+
+    fun recentErrors(context: Context): List<SampleError> =
+        decodeErrorHistory(prefs(context).getString(KEY_ERROR_HISTORY, null))
+
     data class RuntimeStats(val runCount: Long, val lastDurationMs: Long, val totalDurationMs: Long)
 
     fun runtimeStats(context: Context): RuntimeStats {
@@ -148,20 +156,70 @@ object LoggerScheduler {
         diagnostics: List<String>,
         successfulAtMs: Long? = null,
     ) {
-        val editor = prefs(context).edit()
+        val preferences = prefs(context)
+        val attemptedAtMs = System.currentTimeMillis()
+        val editor = preferences.edit()
             .putString(KEY_STATUS, status)
             .putString(KEY_DIAGNOSTICS, diagnostics.joinToString("\n\n"))
-            .putLong(KEY_LAST_ATTEMPT_MS, System.currentTimeMillis())
+            .putLong(KEY_LAST_ATTEMPT_MS, attemptedAtMs)
         if (successfulAtMs != null) {
             editor.putLong(KEY_LAST_SUCCESS_MS, successfulAtMs).remove(KEY_LAST_ERROR)
         } else {
-            editor.putString(KEY_LAST_ERROR, status)
+            editor
+                .putString(KEY_LAST_ERROR, status)
+                .putString(
+                    KEY_ERROR_HISTORY,
+                    appendErrorHistory(
+                        preferences.getString(KEY_ERROR_HISTORY, null),
+                        attemptedAtMs,
+                        status,
+                    ),
+                )
         }
         editor.apply()
+    }
+
+    internal fun appendErrorHistory(
+        serialized: String?,
+        timestampMs: Long,
+        message: String,
+    ): String {
+        val entries = (decodeErrorHistory(serialized) + SampleError(
+            timestampMs,
+            sanitizeErrorMessage(message),
+        )).takeLast(MAX_ERROR_HISTORY)
+        return JSONArray().apply {
+            entries.forEach { error ->
+                put(JSONObject().put("timestamp_ms", error.timestampMs).put("message", error.message))
+            }
+        }.toString()
+    }
+
+    internal fun decodeErrorHistory(serialized: String?): List<SampleError> = runCatching {
+        val array = JSONArray(serialized ?: "[]")
+        buildList {
+            for (index in 0 until array.length()) {
+                val item = array.getJSONObject(index)
+                val timestamp = item.optLong("timestamp_ms", 0L)
+                val message = item.optString("message").takeIf { it.isNotBlank() }
+                if (timestamp > 0L && message != null) add(SampleError(timestamp, message))
+            }
+        }
+    }.getOrDefault(emptyList())
+
+    internal fun sanitizeErrorMessage(message: String): String {
+        val singleLine = message.trim().replace(Regex("\\s+"), " ")
+        return SENSITIVE_VALUE.replace(singleLine) { match -> "${match.groupValues[1]}=[redacted]" }
+            .take(MAX_ERROR_MESSAGE_LENGTH)
     }
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     const val SAMPLE_INTERVAL_MS = 15L * 60L * 1000L
+    private const val MAX_ERROR_HISTORY = 20
+    private const val MAX_ERROR_MESSAGE_LENGTH = 300
+    private val SENSITIVE_VALUE = Regex(
+        "(?i)\\b(access_token|refresh_token|client_secret|authorization|code)\\s*[=:]\\s*[^&\\s]+",
+    )
 }

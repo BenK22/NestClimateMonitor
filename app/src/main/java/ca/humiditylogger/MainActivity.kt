@@ -1326,6 +1326,13 @@ class MainActivity : ComponentActivity() {
             "Android battery optimization applies"
         }
         val failure = LoggerScheduler.lastError(this) ?: "None"
+        val errorHistory = LoggerScheduler.recentErrors(this)
+            .takeLast(5)
+            .asReversed()
+            .joinToString("\n") { error ->
+                "${DateFormat.getDateTimeInstance().format(Date(error.timestampMs))}: ${error.message}"
+            }
+            .ifEmpty { "None recorded" }
         showStyledDialog(
             title = "Sampling health",
             message =
@@ -1335,6 +1342,7 @@ class MainActivity : ComponentActivity() {
                     "Last attempt: $lastAttempt\n" +
                     "Last success: $lastSuccess\n" +
                     "Last failure: $failure\n\n" +
+                    "Recent failures (newest first):\n$errorHistory\n\n" +
                     "Recorded runs: ${stats.runCount}\n" +
                     "Last duration: ${stats.lastDurationMs} ms\n" +
                     "Average duration: $averageMs ms\n" +

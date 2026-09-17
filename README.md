@@ -13,7 +13,7 @@ A deliberately small Android logger for Nest Device Access and Google Home APIs.
 - exports selected-day or complete history as CSV;
 - supports optional sustained high/low humidity notifications;
 - calculates dew point, comfort state, and daily min/average/max summaries;
-- reports delayed or stale samples and supports a unique manual refresh;
+- reports delayed or stale samples, retains a bounded sanitized failure history, and supports a unique manual refresh;
 - lets users select a specific compatible indoor device; and
 - shows returned climate-device types and traits to diagnose whether a thermostat exposes humidity.
 

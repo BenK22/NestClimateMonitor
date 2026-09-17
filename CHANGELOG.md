@@ -11,6 +11,7 @@
 - Required an explicit thermostat selection when Device Access returns multiple devices.
 - Improved widget graph sharpness and scaling, chart day-navigation state, and exact CSV backup round trips.
 - Fixed Linux release execution by tracking the Gradle wrapper as executable.
+- Added a bounded, credential-redacted sampling failure history to Sampling Health.
 
 ## 0.2.0
 
