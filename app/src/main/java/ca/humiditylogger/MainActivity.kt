@@ -106,10 +106,6 @@ class MainActivity : ComponentActivity() {
         }
 
         settingsButton.setOnClickListener { showSettingsMenu() }
-        status.setOnClickListener {
-            LoggerScheduler.refreshNow(this)
-            status.text = "Refresh requested…"
-        }
         previousDayButton.setOnClickListener {
             selectedDay = selectedDay.minusDays(1)
             refreshUiFromStorage()
