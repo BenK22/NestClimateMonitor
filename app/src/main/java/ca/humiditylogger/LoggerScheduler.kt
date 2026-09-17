@@ -78,8 +78,16 @@ object LoggerScheduler {
     }
 
     fun refreshNow(context: Context) {
+        enqueueOneTimeSample(context, force = true)
+    }
+
+    fun catchUpIfOverdue(context: Context) {
+        enqueueOneTimeSample(context, force = false)
+    }
+
+    private fun enqueueOneTimeSample(context: Context, force: Boolean) {
         val request = OneTimeWorkRequestBuilder<SamplingWorker>()
-            .setInputData(workDataOf(SamplingWorker.KEY_FORCE to true))
+            .setInputData(workDataOf(SamplingWorker.KEY_FORCE to force))
             .setConstraints(
                 Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
             )

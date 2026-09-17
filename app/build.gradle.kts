@@ -30,6 +30,12 @@ android {
     }
 
     buildTypes {
+        create("deviceTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".devicetest"
+            versionNameSuffix = "-device-test"
+            matchingFallbacks += listOf("debug")
+        }
         getByName("release") {
             isMinifyEnabled = false
             if (releaseKeystorePath != null) signingConfig = signingConfigs.getByName("release")
@@ -44,6 +50,12 @@ android {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variantBuilder ->
+        variantBuilder.androidTest.enable = variantBuilder.buildType == "deviceTest"
     }
 }
 

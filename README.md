@@ -68,7 +68,7 @@ Background-worker timing and a repeatable Android battery-accounting procedure a
 
 ## Testing safety
 
-`testDebugUnitTest` is safe on a development machine. Run `connectedDebugAndroidTest` only on an emulator or disposable installation: Android's connected-test lifecycle can reinstall the target package and clear its local readings and preferences on a personal phone.
+`testDebugUnitTest` runs the local test suite. On-device database tests exist only in the isolated `deviceTest` build and run with `connectedDeviceTestAndroidTest`. That build installs as `ca.humiditylogger.devicetest`, so it cannot replace `ca.humiditylogger` or access its readings and preferences. Android tests are disabled for the normal debug and release variants.
 
 ## What success looks like
 

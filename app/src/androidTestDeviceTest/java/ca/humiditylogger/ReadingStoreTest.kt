@@ -11,8 +11,8 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ReadingStoreTest {
-    private val testDatabase = "readings-instrumentation-test.db"
     private val context: Context = ApplicationProvider.getApplicationContext()
+    private val testDatabase = "readings-instrumentation-test.db"
     private lateinit var store: ReadingStore
 
     @Before fun setUp() {

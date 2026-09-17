@@ -18,7 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
-class HomeReader(context: Context) {
+class HomeReader private constructor(context: Context) {
     private val registry = FactoryRegistry(
         types = listOf(
             RootNodeDevice,
@@ -169,8 +169,15 @@ class HomeReader(context: Context) {
 
     private fun celsiusToFahrenheit(celsius: Double): Double = celsius * 9.0 / 5.0 + 32.0
 
-    private companion object {
+    companion object {
         const val HOME_SYNC_TIMEOUT_MS = 30_000L
+
+        @Volatile
+        private var instance: HomeReader? = null
+
+        fun getInstance(context: Context): HomeReader = instance ?: synchronized(this) {
+            instance ?: HomeReader(context.applicationContext).also { instance = it }
+        }
     }
 }
 

@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        reader = HomeReader(applicationContext)
+        reader = HomeReader.getInstance(applicationContext)
         store = ReadingStore(applicationContext)
         useFahrenheit = getSharedPreferences(DISPLAY_PREFS, MODE_PRIVATE)
             .getBoolean(KEY_USE_FAHRENHEIT, true)
@@ -163,6 +163,7 @@ class MainActivity : ComponentActivity() {
             if (granted) {
                 if (LoggerScheduler.isEnabled(this)) {
                     LoggerScheduler.start(this)
+                    LoggerScheduler.catchUpIfOverdue(this)
                     status.text = LoggerScheduler.status(this)
                         ?: "15-minute background logging is active"
                 } else {

@@ -1,6 +1,8 @@
 package ca.humiditylogger
 
 import android.content.Context
+import android.app.KeyguardManager
+import android.os.PowerManager
 import android.os.SystemClock
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -28,7 +30,29 @@ class SamplingWorker(
                 return Result.success()
             }
 
-            val reader = HomeReader(applicationContext)
+            val keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java)
+            val powerManager = applicationContext.getSystemService(PowerManager::class.java)
+            if (powerManager?.isInteractive == false || keyguardManager?.isDeviceLocked == true) {
+                val weatherStatus = runCatching {
+                    store.insert(WeatherClient.fetchCurrent(applicationContext))
+                    " Outdoor weather saved."
+                }.getOrElse { error ->
+                    " Outdoor weather failed: ${error.message}."
+                }
+                LoggerScheduler.recordResult(
+                    applicationContext,
+                    "Indoor reading unavailable while the screen is off or locked.$weatherStatus",
+                    listOf(
+                        "Google Home's Android API does not return the home structure while the screen is off or locked.",
+                        "An overdue indoor reading will be requested when the app returns to the foreground.",
+                    ),
+                )
+                DataRetention.apply(applicationContext, store)
+                ClimateWidgetProvider.updateAll(applicationContext)
+                return Result.success()
+            }
+
+            val reader = HomeReader.getInstance(applicationContext)
             if (reader.permissionState() != PermissionsState.GRANTED) {
                 LoggerScheduler.recordResult(
                     applicationContext,
