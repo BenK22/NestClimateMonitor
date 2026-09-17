@@ -86,6 +86,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        selectedDay = restoreSelectedHistoryDay(
+            savedInstanceState?.getString(KEY_SELECTED_DAY),
+            LocalDate.now(zoneId),
+        )
         reader = HomeReader.getInstance(applicationContext)
         store = ReadingStore(applicationContext)
         useFahrenheit = getSharedPreferences(DISPLAY_PREFS, MODE_PRIVATE)
@@ -132,7 +136,7 @@ class MainActivity : ComponentActivity() {
     private fun requestHomePermission() {
         lifecycleScope.launch {
             status.text = "Opening Google Home permission screen…"
-            runCatching {
+            runCatchingCancellable {
                 reader.client.requestPermissions(ForcePermissionFlow.FORCE_LAUNCH)
             }.onSuccess { result ->
                 if (result.status == PermissionsResultStatus.SUCCESS) {
@@ -153,8 +157,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun updatePermissionAndSchedule() {
-        val homePermissionResult = runCatching { reader.permissionState() }
-        homePermissionGranted = homePermissionResult.getOrNull() == PermissionsState.GRANTED
         val source = IndoorSourcePreference.selected(this)
         if (source == IndoorSource.DEVICE_ACCESS) {
             if (!DeviceAccessStore(this).isConnected()) {
@@ -171,6 +173,8 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
+        val homePermissionResult = runCatchingCancellable { reader.permissionState() }
+        homePermissionGranted = homePermissionResult.getOrNull() == PermissionsState.GRANTED
         homePermissionResult.onSuccess { state ->
             val granted = state == PermissionsState.GRANTED
             homePermissionGranted = granted
@@ -231,9 +235,11 @@ class MainActivity : ComponentActivity() {
         chart.dayEndMs = dayEnd
         chart.useFahrenheit = useFahrenheit
         chart.outdoorSource = weatherLocation.readingSource
-        val dayReadings = store.between(dayStart, dayEnd).filter {
-            WeatherClient.isOutdoor(it.source) || ThermostatSelection.matches(this, it)
-        }
+        val daySeries = WidgetReadingSelection.select(
+            store.between(dayStart, dayEnd),
+            weatherLocation.readingSource,
+        ) { ThermostatSelection.matches(this, it) }
+        val dayReadings = daySeries.displayed.sortedBy(Reading::timestampMs)
         chart.readings = dayReadings
         updateDailySummaries(dayReadings)
         chartDate.text = if (selectedDay == LocalDate.now(zoneId)) {
@@ -553,7 +559,12 @@ class MainActivity : ComponentActivity() {
         )
         val (googleHomeRow, _) = clickableRow(
             "Google Home access",
-            if (homePermissionGranted) "Connected — screen-on/unlocked" else "Not connected",
+            when {
+                homePermissionGranted -> "Connected — screen-on/unlocked"
+                IndoorSourcePreference.selected(this) == IndoorSource.DEVICE_ACCESS ->
+                    "Optional alternate source — tap to check"
+                else -> "Not connected"
+            },
         )
         val deviceAccessStore = DeviceAccessStore(this)
         val indoorSource = IndoorSourcePreference.selected(this)
@@ -923,7 +934,7 @@ class MainActivity : ComponentActivity() {
     private fun previewCsvImport(uri: Uri) {
         lifecycleScope.launch {
             val preview = withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     val csv = contentResolver.openInputStream(uri)?.bufferedReader()?.use(CsvImporter::readLimited)
                         ?: error("The selected file could not be opened")
                     CsvImporter.preview(csv, store.all())
@@ -946,7 +957,7 @@ class MainActivity : ComponentActivity() {
                 positiveLabel = "Import",
                 onPositive = {
                     lifecycleScope.launch(Dispatchers.IO) {
-                        store.insertAll(preview.readings)
+                        ReadingImporter.insert(this@MainActivity, store, preview.readings)
                         withContext(Dispatchers.Main) {
                             refreshUiFromStorage()
                             ClimateWidgetProvider.updateAll(applicationContext)
@@ -1322,7 +1333,7 @@ class MainActivity : ComponentActivity() {
     private fun showThermostatSelectionDialog() {
         status.text = "Finding compatible climate devices…"
         lifecycleScope.launch {
-            val devices = runCatching {
+            val devices = runCatchingCancellable {
                 reader.sample().readings.distinctBy { it.deviceId ?: it.source }.sortedBy { it.source }
             }
                 .getOrElse {
@@ -1419,7 +1430,7 @@ class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
     private suspend fun geocodeLocation(query: String): WeatherLocation? =
         withContext(Dispatchers.IO) {
-            runCatching {
+            runCatchingCancellable {
                 Geocoder(this@MainActivity, Locale.CANADA)
                     .getFromLocationName(query, 1)
                     ?.firstOrNull()
@@ -1926,6 +1937,11 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(KEY_SELECTED_DAY, selectedDay.toString())
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onResume() {
         super.onResume()
         if (::store.isInitialized && ::status.isInitialized) refreshUiFromStorage()
@@ -1942,6 +1958,7 @@ class MainActivity : ComponentActivity() {
         const val KEY_USE_FAHRENHEIT = "use_fahrenheit"
         const val SETUP_PREFS = "setup"
         const val KEY_SETUP_COMPLETE = "complete"
+        const val KEY_SELECTED_DAY = "selected_day"
         val BACKGROUND = Color.rgb(9, 16, 14)
         val CARD = Color.rgb(22, 32, 29)
         val TEXT_PRIMARY = Color.rgb(238, 246, 243)
@@ -1953,3 +1970,6 @@ class MainActivity : ComponentActivity() {
         val OUTDOOR_TEMPERATURE = Color.rgb(255, 190, 92)
     }
 }
+
+internal fun restoreSelectedHistoryDay(saved: String?, today: LocalDate): LocalDate =
+    runCatching { saved?.let(LocalDate::parse) }.getOrNull() ?: today

@@ -49,6 +49,12 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         awaitingAuthorization = savedInstanceState?.getBoolean(KEY_AWAITING_AUTHORIZATION) ?: false
         store = DeviceAccessStore(applicationContext)
         setContentView(buildContent())
+        (lastCustomNonConfigurationInstance as? Draft)?.let { draft ->
+            projectId.setText(draft.projectId)
+            clientId.setText(draft.clientId)
+            clientSecret.setText(draft.clientSecret)
+            authorizationCode.setText(draft.authorizationUrl)
+        }
         renderStatus()
     }
 
@@ -64,6 +70,18 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         outState.putBoolean(KEY_AWAITING_AUTHORIZATION, awaitingAuthorization)
         super.onSaveInstanceState(outState)
     }
+
+    override fun onRetainCustomNonConfigurationInstance(): Any? =
+        if (::projectId.isInitialized) {
+            Draft(
+                projectId.text.toString(),
+                clientId.text.toString(),
+                clientSecret.text.toString(),
+                authorizationCode.text.toString(),
+            )
+        } else {
+            null
+        }
 
     private fun buildContent(): View {
         val config = store.configuration()
@@ -132,7 +150,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(helpText("1. Open Google authorization.\n2. Allow access to your home and thermostat.\n3. At the Google page, tap the address bar and copy the complete URL.\n4. Return to this app.\n5. Paste the copied Google URL below."))
         authorizeButton = actionButton("Open Google authorization")
         content.addView(authorizeButton, matchWrap(bottom = 10))
-        authorizationCode = field("Authorization code or redirected URL", "", multiline = true)
+        authorizationCode = field("Complete redirected Google URL", "", multiline = true)
         content.addView(authorizationCode, matchWrap(bottom = 10))
         completeButton = actionButton("Complete connection")
         content.addView(completeButton, matchWrap(bottom = 10))
@@ -148,13 +166,13 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(doneButton)
 
         saveProjectButton.setOnClickListener {
-            runCatching(::saveProjectId).onFailure(::showError)
+            runCatchingCancellable(::saveProjectId).onFailure(::showError)
         }
         deviceAccessConsoleLink.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DEVICE_ACCESS_CONSOLE_URL)))
         }
         saveOAuthButton.setOnClickListener {
-            runCatching(::saveOAuthCredentials).onFailure(::showError)
+            runCatchingCancellable(::saveOAuthCredentials).onFailure(::showError)
         }
         oauthClientsLink.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
@@ -203,7 +221,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         }
         setBusy(true, "Exchanging the authorization code with Google…")
         lifecycleScope.launch {
-            val result = runCatching {
+            val result = runCatchingCancellable {
                 DeviceAccessClient(this@DeviceAccessSettingsActivity).link(authorizationCode.text.toString())
             }
             setBusy(false)
@@ -218,7 +236,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     }
 
     private fun openGoogleAuthorization() {
-        val url = runCatching { DeviceAccessClient(this).authorizationUrl() }
+        val url = runCatchingCancellable { DeviceAccessClient(this).authorizationUrl() }
             .getOrElse {
                 showError(it)
                 return
@@ -254,10 +272,12 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private fun importAuthorizationFromClipboard() {
         val clipboard = getSystemService(ClipboardManager::class.java)
         val copied = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
-        // Automatic clipboard import must only accept the redirect URL. The manual field still
-        // accepts a bare code, but treating arbitrary clipboard text as a code is too surprising.
-        val valid = DeviceAccessClient.isExpectedRedirectUrl(copied) &&
-            runCatching { DeviceAccessClient.extractAuthorizationCode(copied) }.isSuccess
+        // Clipboard import accepts only the redirect URL from the currently pending request.
+        val expectedState = store.pendingOAuthState()
+        val valid = expectedState != null && DeviceAccessClient.isExpectedRedirectUrl(copied) &&
+            runCatching {
+                DeviceAccessClient.extractAuthorizationResponse(copied, expectedState)
+            }.isSuccess
         if (valid) {
             authorizationCode.setText(copied)
             awaitingAuthorization = false
@@ -271,7 +291,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private fun testConnection() {
         setBusy(true, "Reading thermostats from Google SDM…")
         lifecycleScope.launch {
-            val result = runCatching { DeviceAccessClient(this@DeviceAccessSettingsActivity).thermostats() }
+            val result = runCatchingCancellable { DeviceAccessClient(this@DeviceAccessSettingsActivity).thermostats() }
             setBusy(false)
             result
                 .onSuccess(::chooseThermostat)
@@ -347,12 +367,6 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                 "Connected to Nest Device Access. Select it under Indoor data source to use it."
             store.isConfigured() -> "Credentials saved. Complete Google authorization to connect Nest."
             else -> "Not configured"
-        }
-        if (::projectId.isInitialized && !projectId.hasFocus() && projectId.text.isBlank()) {
-            projectId.setText(config.projectId)
-        }
-        if (::clientId.isInitialized && !clientId.hasFocus() && clientId.text.isBlank()) {
-            clientId.setText(config.clientId)
         }
         renderIndicators()
         renderButtons()
@@ -519,4 +533,11 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             "https://console.developers.google.com/apis/api/smartdevicemanagement.googleapis.com/overview"
         const val KEY_AWAITING_AUTHORIZATION = "awaiting_authorization"
     }
+
+    private data class Draft(
+        val projectId: String,
+        val clientId: String,
+        val clientSecret: String,
+        val authorizationUrl: String,
+    )
 }

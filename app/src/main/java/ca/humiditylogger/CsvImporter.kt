@@ -130,5 +130,5 @@ object CsvImporter {
     private const val MAX_ROWS = 100_000
     private const val MAX_TEXT_LENGTH = 512
     private const val MIN_TIMESTAMP_MS = 946_684_800_000L // 2000-01-01 UTC
-    private const val MAX_FUTURE_SKEW_MS = 24L * 60L * 60L * 1000L
+    private const val MAX_FUTURE_SKEW_MS = 5L * 60L * 1000L
 }

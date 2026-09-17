@@ -77,6 +77,18 @@ class DeviceAccessStoreTest {
         }
     }
 
+    @Test
+    fun pendingOAuthStateExpiresAndCanOnlyBeConsumedOnce() {
+        store.savePendingOAuthState("one-time", createdAtMs = 1_000L)
+        assertEquals("one-time", store.pendingOAuthState(nowMs = 2_000L))
+
+        store.clearPendingOAuthState()
+        assertNull(store.pendingOAuthState(nowMs = 2_000L))
+
+        store.savePendingOAuthState("expired", createdAtMs = 1_000L)
+        assertNull(store.pendingOAuthState(nowMs = 11L * 60L * 1000L + 1_000L))
+    }
+
     private companion object {
         const val PROJECT_ID = "00000000-0000-0000-0000-000000000000"
         const val CLIENT_ID = "123-example.apps.googleusercontent.com"

@@ -31,8 +31,11 @@ object ThermostatSelection {
         if (source == IndoorSource.GOOGLE_HOME && isDeviceAccessReading) return false
         val deviceAccess = DeviceAccessStore(context)
         if (isDeviceAccessReading) {
-            val deviceId = deviceAccess.selectedDeviceId()
-            return deviceId == null || reading.deviceId == deviceId
+            return matchesDeviceAccess(
+                deviceAccess.configuration().projectId,
+                deviceAccess.selectedDeviceId(),
+                reading,
+            )
         }
         return matchesSelection(selectedSource(context), selectedDeviceId(context), reading)
     }
@@ -43,6 +46,17 @@ object ThermostatSelection {
         } else {
             source == reading.source
         }
+
+    internal fun matchesDeviceAccess(
+        projectId: String,
+        selectedDeviceId: String?,
+        reading: Reading,
+    ): Boolean {
+        if (projectId.isBlank()) return false
+        val resourceName = reading.deviceId ?: return false
+        if (!resourceName.startsWith("enterprises/$projectId/devices/")) return false
+        return selectedDeviceId == null || resourceName == selectedDeviceId
+    }
 
     fun filter(context: Context, readings: List<Reading>): List<Reading> =
         readings.filter { matches(context, it) }

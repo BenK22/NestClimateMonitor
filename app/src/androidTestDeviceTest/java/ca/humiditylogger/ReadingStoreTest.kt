@@ -21,6 +21,7 @@ class ReadingStoreTest {
     }
 
     @After fun tearDown() {
+        DataRetention.setOneYear(context, false)
         store.close()
         context.deleteDatabase(testDatabase)
     }
@@ -55,5 +56,22 @@ class ReadingStoreTest {
         assertEquals(2, store.count())
         assertEquals(1, store.deleteBefore(1_500))
         assertEquals(2_000, store.all().single().timestampMs)
+    }
+
+    @Test fun csvImportServiceImmediatelyAppliesRetention() {
+        val now = System.currentTimeMillis()
+        val twoYears = 2L * 365L * 24L * 60L * 60L * 1000L
+        DataRetention.setOneYear(context, true)
+
+        ReadingImporter.insert(
+            context,
+            store,
+            listOf(
+                Reading(now - twoYears, "Old", null, 20.0, 40.0),
+                Reading(now, "Current", null, 21.0, 41.0),
+            ),
+        )
+
+        assertEquals(listOf("Current"), store.all().map(Reading::source))
     }
 }

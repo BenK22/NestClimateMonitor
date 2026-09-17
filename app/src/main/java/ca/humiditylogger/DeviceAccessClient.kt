@@ -10,6 +10,9 @@ import java.net.URI
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 
 class DeviceAccessClient(context: Context) {
     private val store = DeviceAccessStore(context.applicationContext)
@@ -17,15 +20,21 @@ class DeviceAccessClient(context: Context) {
     fun authorizationUrl(): String {
         val config = store.configuration()
         require(store.isConfigured()) { "Save the Device Access credentials first." }
+        val state = newOAuthState()
+        store.savePendingOAuthState(state)
         return "https://nestservices.google.com/partnerconnections/${encode(config.projectId)}/auth" +
             "?redirect_uri=${encode(REDIRECT_URI)}" +
             "&access_type=offline&prompt=consent" +
             "&client_id=${encode(config.clientId)}" +
-            "&response_type=code&scope=${encode(SDM_SCOPE)}"
+            "&response_type=code&scope=${encode(SDM_SCOPE)}" +
+            "&state=${encode(state)}"
     }
 
     suspend fun link(authorizationCodeOrUrl: String): List<Reading> = withContext(Dispatchers.IO) {
-        val code = extractAuthorizationCode(authorizationCodeOrUrl)
+        val expectedState = store.pendingOAuthState()
+            ?: error("Authorization request expired. Open Google authorization again.")
+        val code = extractAuthorizationResponse(authorizationCodeOrUrl, expectedState)
+        store.clearPendingOAuthState()
         val tokens = tokenRequest(
             mapOf(
                 "code" to code,
@@ -126,6 +135,11 @@ class DeviceAccessClient(context: Context) {
     }
 
     companion object {
+        internal fun newOAuthState(): String {
+            val bytes = ByteArray(32).also(SecureRandom()::nextBytes)
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        }
+
         internal fun isExpectedRedirectUrl(value: String): Boolean {
             val uri = runCatching { URI(value.trim()) }.getOrNull() ?: return false
             if (!uri.scheme.equals("https", ignoreCase = true)) return false
@@ -147,6 +161,30 @@ class DeviceAccessClient(context: Context) {
             return code?.let { URLDecoder.decode(it, Charsets.UTF_8.name()) }
                 ?.takeIf { it.isNotBlank() }
                 ?: error("The pasted value does not contain an authorization code.")
+        }
+
+        internal fun extractAuthorizationResponse(value: String, expectedState: String): String {
+            require(expectedState.isNotBlank()) { "Authorization request expired. Open Google authorization again." }
+            require(isExpectedRedirectUrl(value)) {
+                "Paste the complete https://www.google.com/?code=… address from this authorization attempt."
+            }
+            val query = URI(value.trim()).rawQuery.orEmpty()
+            val parameters = query.split('&').mapNotNull { part ->
+                val pieces = part.split('=', limit = 2)
+                pieces.firstOrNull()?.let { key ->
+                    URLDecoder.decode(key, Charsets.UTF_8.name()) to
+                        URLDecoder.decode(pieces.getOrElse(1) { "" }, Charsets.UTF_8.name())
+                }
+            }.toMap()
+            val returnedState = parameters["state"].orEmpty()
+            require(
+                MessageDigest.isEqual(
+                    expectedState.toByteArray(Charsets.UTF_8),
+                    returnedState.toByteArray(Charsets.UTF_8),
+                )
+            ) { "This Google URL belongs to a different or expired authorization attempt." }
+            return parameters["code"]?.takeIf { it.isNotBlank() }
+                ?: error("The pasted Google URL does not contain an authorization code.")
         }
 
         private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name())

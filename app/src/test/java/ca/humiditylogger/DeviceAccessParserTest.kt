@@ -50,6 +50,41 @@ class DeviceAccessParserTest {
     }
 
     @Test
+    fun authorizationResponseMustMatchOneTimeState() {
+        assertEquals(
+            "good/code",
+            DeviceAccessClient.extractAuthorizationResponse(
+                "https://www.google.com/?code=good%2Fcode&state=expected",
+                "expected",
+            ),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun authorizationResponseRejectsMismatchedState() {
+        DeviceAccessClient.extractAuthorizationResponse(
+            "https://www.google.com/?code=good&state=other",
+            "expected",
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun authorizationResponseRejectsMissingState() {
+        DeviceAccessClient.extractAuthorizationResponse(
+            "https://www.google.com/?code=good",
+            "expected",
+        )
+    }
+
+    @Test
+    fun generatedStatesAreStrongAndUnique() {
+        val first = DeviceAccessClient.newOAuthState()
+        val second = DeviceAccessClient.newOAuthState()
+        assertTrue(first.length >= 40)
+        assertFalse(first == second)
+    }
+
+    @Test
     fun automaticClipboardImportRequiresTheConfiguredRedirectOrigin() {
         assertTrue(DeviceAccessClient.isExpectedRedirectUrl("https://www.google.com/?code=good"))
         assertFalse(DeviceAccessClient.isExpectedRedirectUrl("https://evil.example/?code=stolen"))

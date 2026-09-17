@@ -58,18 +58,28 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                     WidgetGraph.render(context, readings, widthDp, (heightDp * 0.48).roundToInt()),
                 )
                 val latest = listOfNotNull(indoor?.timestampMs, outdoor?.timestampMs).maxOrNull()
+                val freshness = WidgetFreshnessPolicy.evaluate(
+                    latest,
+                    System.currentTimeMillis(),
+                    LoggerScheduler.isEnabled(context),
+                )
                 setTextViewText(
                     R.id.widget_updated,
-                    latest?.let { "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}" }
-                        ?: "Waiting for first reading",
+                    when (freshness) {
+                        WidgetFreshness.DISABLED -> latest?.let {
+                            "Logging off · Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}"
+                        } ?: "Logging off"
+                        WidgetFreshness.WAITING -> "Waiting for first reading"
+                        else -> "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(latest!!))}"
+                    },
                 )
-                val age = latest?.let { System.currentTimeMillis() - it } ?: Long.MAX_VALUE
                 setTextColor(
                     R.id.widget_updated,
-                    when {
-                        age < 30L * 60L * 1000L -> Color.rgb(112, 219, 181)
-                        age < 60L * 60L * 1000L -> Color.rgb(255, 190, 92)
-                        else -> Color.rgb(255, 112, 96)
+                    when (freshness) {
+                        WidgetFreshness.FRESH -> Color.rgb(112, 219, 181)
+                        WidgetFreshness.DELAYED -> Color.rgb(255, 190, 92)
+                        WidgetFreshness.DISABLED -> Color.rgb(158, 177, 170)
+                        WidgetFreshness.WAITING, WidgetFreshness.STALE -> Color.rgb(255, 112, 96)
                     },
                 )
                 setOnClickPendingIntent(R.id.widget_root, WidgetAppearance.launchApp(context))

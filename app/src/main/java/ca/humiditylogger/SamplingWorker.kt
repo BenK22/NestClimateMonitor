@@ -7,6 +7,7 @@ import android.os.SystemClock
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.home.PermissionsState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -28,8 +29,10 @@ class SamplingWorker(
                         ThermostatSelection.matches(applicationContext, it)
                 }
                 ?.timestampMs
-            if (!force && latestIndoorMs != null &&
-                System.currentTimeMillis() - latestIndoorMs < LoggerScheduler.SAMPLE_INTERVAL_MS
+            if (!force && latestIndoorMs != null && isFresh(
+                    timestampMs = latestIndoorMs,
+                    nowMs = System.currentTimeMillis(),
+                )
             ) {
                 return Result.success()
             }
@@ -40,12 +43,7 @@ class SamplingWorker(
             val indoorDiagnostics: List<String>
             if (indoorSource == IndoorSource.DEVICE_ACCESS) {
                 if (!deviceAccessStore.isConnected()) {
-                    val weatherStatus = runCatching {
-                        store.insert(WeatherClient.fetchCurrent(applicationContext))
-                        " Outdoor weather saved."
-                    }.getOrElse { error ->
-                        " Outdoor weather failed: ${error.message}."
-                    }
+                    val weatherStatus = saveOutdoorReading(store)
                     LoggerScheduler.recordResult(
                         applicationContext,
                         "Nest Device Access is selected but not connected.$weatherStatus",
@@ -55,15 +53,10 @@ class SamplingWorker(
                     ClimateWidgetProvider.updateAll(applicationContext)
                     return Result.success()
                 }
-                val available = runCatching {
+                val available = runCatchingCancellable {
                     DeviceAccessClient(applicationContext).thermostats()
                 }.getOrElse { error ->
-                    val weatherStatus = runCatching {
-                        store.insert(WeatherClient.fetchCurrent(applicationContext))
-                        " Outdoor weather saved."
-                    }.getOrElse { weatherError ->
-                        " Outdoor weather failed: ${weatherError.message}."
-                    }
+                    val weatherStatus = saveOutdoorReading(store)
                     LoggerScheduler.recordResult(
                         applicationContext,
                         "Nest Device Access failed: ${error.message ?: error.javaClass.simpleName}.$weatherStatus",
@@ -87,12 +80,7 @@ class SamplingWorker(
                 val keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java)
                 val powerManager = applicationContext.getSystemService(PowerManager::class.java)
                 if (powerManager?.isInteractive == false || keyguardManager?.isDeviceLocked == true) {
-                    val weatherStatus = runCatching {
-                        store.insert(WeatherClient.fetchCurrent(applicationContext))
-                        " Outdoor weather saved."
-                    }.getOrElse { error ->
-                        " Outdoor weather failed: ${error.message}."
-                    }
+                    val weatherStatus = saveOutdoorReading(store)
                     LoggerScheduler.recordResult(
                         applicationContext,
                         "Connect Nest Device Access for screen-off indoor readings.$weatherStatus",
@@ -108,11 +96,14 @@ class SamplingWorker(
 
                 val reader = HomeReader.getInstance(applicationContext)
                 if (reader.permissionState() != PermissionsState.GRANTED) {
+                    val weatherStatus = saveOutdoorReading(store)
                     LoggerScheduler.recordResult(
                         applicationContext,
-                        "Google Home permission is not granted",
+                        "Google Home permission is not granted.$weatherStatus",
                         emptyList(),
                     )
+                    DataRetention.apply(applicationContext, store)
+                    ClimateWidgetProvider.updateAll(applicationContext)
                     return Result.success()
                 }
                 val sample = reader.sample()
@@ -121,12 +112,7 @@ class SamplingWorker(
             }
 
             indoorReadings.forEach(store::insert)
-            val weatherStatus = runCatching {
-                store.insert(WeatherClient.fetchCurrent(applicationContext))
-                " Outdoor weather saved."
-            }.getOrElse { error ->
-                " Outdoor weather failed: ${error.message}."
-            }
+            val weatherStatus = saveOutdoorReading(store)
             val status = when {
                 indoorReadings.any { it.humidityPercent != null } ->
                     "Saved indoor temperature and humidity.$weatherStatus"
@@ -144,6 +130,8 @@ class SamplingWorker(
             DataRetention.apply(applicationContext, store)
             ClimateWidgetProvider.updateAll(applicationContext)
             Result.success()
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             LoggerScheduler.recordResult(
                 applicationContext,
@@ -160,11 +148,22 @@ class SamplingWorker(
         }
     }
 
+    private suspend fun saveOutdoorReading(store: ReadingStore): String =
+        runCatchingCancellable {
+            store.insert(WeatherClient.fetchCurrent(applicationContext))
+            " Outdoor weather saved."
+        }.getOrElse { error ->
+            " Outdoor weather failed: ${error.message}."
+        }
+
     companion object {
         const val KEY_FORCE = "force_sample"
         private val sampleMutex = Mutex()
 
         internal fun shouldRun(loggingEnabled: Boolean, force: Boolean): Boolean =
             loggingEnabled || force
+
+        internal fun isFresh(timestampMs: Long, nowMs: Long): Boolean =
+            timestampMs <= nowMs && nowMs - timestampMs < LoggerScheduler.SAMPLE_INTERVAL_MS
     }
 }

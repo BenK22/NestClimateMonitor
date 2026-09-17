@@ -17,4 +17,27 @@ class ThermostatSelectionTest {
         val legacy = Reading(1, "Dining Room", null, 20.0, 50.0)
         assertTrue(ThermostatSelection.matchesSelection("Dining Room", "abc", legacy))
     }
+
+    @Test
+    fun deviceAccessReadingsMustBelongToCurrentProject() {
+        val current = Reading(
+            1,
+            "Dining Room",
+            "enterprises/current-project/devices/thermostat",
+            20.0,
+            50.0,
+        )
+        val old = current.copy(deviceId = "enterprises/old-project/devices/thermostat")
+
+        assertTrue(ThermostatSelection.matchesDeviceAccess("current-project", null, current))
+        assertFalse(ThermostatSelection.matchesDeviceAccess("current-project", null, old))
+        assertFalse(ThermostatSelection.matchesDeviceAccess("", null, current))
+        assertFalse(
+            ThermostatSelection.matchesDeviceAccess(
+                "current-project",
+                "enterprises/current-project/devices/other",
+                current,
+            )
+        )
+    }
 }

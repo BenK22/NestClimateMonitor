@@ -103,6 +103,32 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    fun savePendingOAuthState(state: String, createdAtMs: Long = System.currentTimeMillis()) {
+        require(state.isNotBlank()) { "OAuth state cannot be blank." }
+        prefs.edit()
+            .putString(KEY_PENDING_OAUTH_STATE, state)
+            .putLong(KEY_PENDING_OAUTH_STATE_CREATED, createdAtMs)
+            .apply()
+    }
+
+    fun pendingOAuthState(nowMs: Long = System.currentTimeMillis()): String? {
+        val state = prefs.getString(KEY_PENDING_OAUTH_STATE, null)?.takeIf { it.isNotBlank() }
+            ?: return null
+        val createdAt = prefs.getLong(KEY_PENDING_OAUTH_STATE_CREATED, 0L)
+        if (createdAt <= 0L || nowMs < createdAt || nowMs - createdAt > OAUTH_STATE_LIFETIME_MS) {
+            clearPendingOAuthState()
+            return null
+        }
+        return state
+    }
+
+    fun clearPendingOAuthState() {
+        prefs.edit()
+            .remove(KEY_PENDING_OAUTH_STATE)
+            .remove(KEY_PENDING_OAUTH_STATE_CREATED)
+            .apply()
+    }
+
     fun accessToken(): AccessToken? {
         val encrypted = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
         return runCatching {
@@ -135,6 +161,8 @@ class DeviceAccessStore(context: Context) {
             .remove(KEY_ACCESS_TOKEN_EXPIRY)
             .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_DEVICE_ID)
+            .remove(KEY_PENDING_OAUTH_STATE)
+            .remove(KEY_PENDING_OAUTH_STATE_CREATED)
             .apply()
     }
 
@@ -153,6 +181,8 @@ class DeviceAccessStore(context: Context) {
         remove(KEY_ACCESS_TOKEN_EXPIRY)
         remove(KEY_REFRESH_TOKEN)
         remove(KEY_DEVICE_ID)
+        remove(KEY_PENDING_OAUTH_STATE)
+        remove(KEY_PENDING_OAUTH_STATE_CREATED)
     }
 
     private fun encrypt(value: String): String {
@@ -202,10 +232,13 @@ class DeviceAccessStore(context: Context) {
         const val KEY_ACCESS_TOKEN_EXPIRY = "access_token_expiry"
         const val KEY_REFRESH_TOKEN = "refresh_token_encrypted"
         const val KEY_DEVICE_ID = "device_id"
+        const val KEY_PENDING_OAUTH_STATE = "pending_oauth_state"
+        const val KEY_PENDING_OAUTH_STATE_CREATED = "pending_oauth_state_created"
         const val KEY_ALIAS = "home_climate_device_access"
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val IV_LENGTH_BYTES = 12
         const val GCM_TAG_LENGTH_BITS = 128
+        const val OAUTH_STATE_LIFETIME_MS = 10L * 60L * 1000L
     }
 }

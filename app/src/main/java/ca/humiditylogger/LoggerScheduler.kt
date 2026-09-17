@@ -63,6 +63,7 @@ object LoggerScheduler {
             .putBoolean(KEY_ENABLED, false)
             .putString(KEY_STATUS, "Background logging stopped")
             .apply()
+        ClimateWidgetProvider.updateAll(context.applicationContext)
     }
 
     fun setEnabled(context: Context, enabled: Boolean) {

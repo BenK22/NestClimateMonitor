@@ -44,6 +44,18 @@ class CsvImporterTest {
         assertEquals(3, preview.invalidCount)
     }
 
+    @Test
+    fun rejectsTimestampBeyondSmallClockSkew() {
+        val now = 1_700_000_000_000
+        val csv = "timestamp_ms,source,temperature_c,humidity_percent\n" +
+            "${now + 6 * 60_000},Future,22,50\n"
+
+        val preview = CsvImporter.preview(csv, emptyList(), now)
+
+        assertEquals(0, preview.readings.size)
+        assertEquals(1, preview.invalidCount)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun boundedReaderRejectsOversizedFiles() {
         CsvImporter.readLimited(StringReader("x".repeat(CsvImporter.MAX_CSV_CHARS + 1)))
