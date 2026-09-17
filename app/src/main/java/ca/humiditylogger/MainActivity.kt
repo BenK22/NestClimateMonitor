@@ -425,6 +425,23 @@ class MainActivity : ComponentActivity() {
             }
             return row to valueView
         }
+        fun sectionHeader(title: String) = TextView(this).apply {
+            text = title.uppercase()
+            textSize = 12f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(TEXT_SECONDARY)
+            letterSpacing = 0.08f
+            setPadding(dp(4), dp(16), dp(4), dp(5))
+        }
+        fun addMenuRow(panel: LinearLayout, row: View) {
+            panel.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(8) },
+            )
+        }
 
         val weatherLocation = WeatherLocationStore.get(this)
         val loggingEnabled = LoggerScheduler.isEnabled(this)
@@ -604,6 +621,35 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) },
         )
+
+        val menuRows = listOf(
+            setupRow,
+            indoorSourceRow,
+            deviceAccessRow,
+            googleHomeRow,
+            thermostatRow,
+            loggingRow,
+            refreshRow,
+            healthRow,
+            unitsRow,
+            locationRow,
+            alertsRow,
+            dataRow,
+            exportRow,
+            importRow,
+        )
+        menuRows.forEach(panel::removeView)
+
+        addMenuRow(panel, setupRow)
+        panel.addView(sectionHeader("Connections"))
+        listOf(indoorSourceRow, deviceAccessRow, googleHomeRow, thermostatRow)
+            .forEach { addMenuRow(panel, it) }
+        panel.addView(sectionHeader("Logging"))
+        listOf(loggingRow, refreshRow, healthRow).forEach { addMenuRow(panel, it) }
+        panel.addView(sectionHeader("Display and environment"))
+        listOf(unitsRow, locationRow, alertsRow).forEach { addMenuRow(panel, it) }
+        panel.addView(sectionHeader("Data"))
+        listOf(dataRow, exportRow, importRow).forEach { addMenuRow(panel, it) }
 
         val settingsScroll = ScrollView(this).apply {
             isFillViewport = true
