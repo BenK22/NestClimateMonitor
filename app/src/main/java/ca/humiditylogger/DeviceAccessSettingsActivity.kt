@@ -282,8 +282,14 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             return
         }
         if (readings.size == 1) {
-            store.setSelectedDeviceId(readings.single().deviceId)
-            status.text = "Connected to ${readings.single().source}."
+            val thermostat = readings.single()
+            store.setSelectedDeviceId(thermostat.deviceId)
+            status.text = "Connected to ${thermostat.source}."
+            AlertDialog.Builder(this)
+                .setTitle("Thermostat selected")
+                .setMessage("Only one thermostat was found, so ${thermostat.source} was selected automatically.")
+                .setPositiveButton("OK", null)
+                .show()
             return
         }
         val selectedId = store.selectedDeviceId()
