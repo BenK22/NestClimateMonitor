@@ -27,8 +27,8 @@ Outdoor weather data is provided by [Open-Meteo](https://open-meteo.com/) under 
 
 Device Access is the recommended indoor source. Each user supplies their own Google credentials directly on the phone; no credentials are compiled into the APK or repository.
 
-1. Enable the Smart Device Management API in a Google Cloud project.
-2. Create a **Web application** OAuth client with `https://www.google.com` as an authorized redirect URI.
+1. Create a **Web application** OAuth client in [Google Auth Platform](https://console.cloud.google.com/auth/clients/) with `https://www.google.com` as an authorized redirect URI.
+2. [Enable the Smart Device Management API](https://console.cloud.google.com/apis/library/smartdevicemanagement.googleapis.com) in the same Google Cloud project that owns the OAuth client. If it was just enabled, allow a few minutes for the change to propagate.
 3. Register for [Nest Device Access](https://developers.google.com/nest/device-access/registration), create a Device Access project with Events disabled, and associate the Web OAuth Client ID with it.
 4. For long-lived refresh tokens, move the Google Auth Platform audience from Testing to Production. Personal use does not require OAuth verification, but Google may show an unverified-app warning.
 5. In the app, open **Settings → Nest Device Access**, enter the Device Access Project ID, Web Client ID, and rotated Client Secret, then save.

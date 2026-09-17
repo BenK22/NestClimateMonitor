@@ -94,7 +94,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             oauthIndicator = indicator
             content.addView(view)
         }
-        content.addView(helpText("Create a Web application client in Google Auth Platform. The client secret is encrypted with Android Keystore and never exported."))
+        content.addView(helpText("Create a Web application client in Google Auth Platform, then enable the Smart Device Management API in the same Google Cloud project. The client secret is encrypted with Android Keystore and never exported."))
         clientId = field("Web OAuth Client ID", config.clientId)
         content.addView(clientId, matchWrap(bottom = 10))
         clientSecret = field(
@@ -106,7 +106,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val saveOAuthButton = actionButton("Save OAuth credentials", secondary = true)
         content.addView(saveOAuthButton, matchWrap(bottom = 10))
         val oauthClientsLink = externalLink("Open Google Auth Platform ↗")
-        content.addView(oauthClientsLink, matchWrap(bottom = 20))
+        content.addView(oauthClientsLink, matchWrap(bottom = 8))
+        val sdmApiLink = externalLink("Enable Smart Device Management API ↗")
+        content.addView(sdmApiLink, matchWrap(bottom = 20))
 
         sectionHeader("2. Device Access project").also { (view, indicator) ->
             projectIndicator = indicator
@@ -156,6 +158,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         oauthClientsLink.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
         }
+        sdmApiLink.setOnClickListener { openSdmApiConsole() }
         authorizeButton.setOnClickListener {
             openGoogleAuthorization()
         }
@@ -233,6 +236,19 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             }
             .show()
+    }
+
+    private fun openSdmApiConsole() {
+        val enteredClientId = clientId.text.toString().trim()
+        val projectNumber = enteredClientId.substringBefore('-').takeIf {
+            it.isNotBlank() && it.all(Char::isDigit)
+        }
+        if (projectNumber == null) {
+            showError(IllegalArgumentException("Enter your Web OAuth Client ID first."))
+            return
+        }
+        val url = "$SDM_API_CONSOLE_URL?project=${Uri.encode(projectNumber)}"
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 
     private fun importAuthorizationFromClipboard(showFailure: Boolean = false) {
@@ -487,6 +503,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val INCOMPLETE = Color.rgb(255, 111, 97)
         const val DEVICE_ACCESS_CONSOLE_URL = "https://console.nest.google.com/device-access"
         const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
+        const val SDM_API_CONSOLE_URL =
+            "https://console.developers.google.com/apis/api/smartdevicemanagement.googleapis.com/overview"
         const val KEY_AWAITING_AUTHORIZATION = "awaiting_authorization"
     }
 }
