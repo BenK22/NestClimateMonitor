@@ -31,9 +31,26 @@ class SamplingWorker(
             }
 
             val deviceAccessStore = DeviceAccessStore(applicationContext)
+            val indoorSource = IndoorSourcePreference.selected(applicationContext)
             val indoorReadings: List<Reading>
             val indoorDiagnostics: List<String>
-            if (deviceAccessStore.isConnected()) {
+            if (indoorSource == IndoorSource.DEVICE_ACCESS) {
+                if (!deviceAccessStore.isConnected()) {
+                    val weatherStatus = runCatching {
+                        store.insert(WeatherClient.fetchCurrent(applicationContext))
+                        " Outdoor weather saved."
+                    }.getOrElse { error ->
+                        " Outdoor weather failed: ${error.message}."
+                    }
+                    LoggerScheduler.recordResult(
+                        applicationContext,
+                        "Nest Device Access is selected but not connected.$weatherStatus",
+                        listOf("Open Settings → Nest Device Access to connect."),
+                    )
+                    DataRetention.apply(applicationContext, store)
+                    ClimateWidgetProvider.updateAll(applicationContext)
+                    return Result.success()
+                }
                 val available = runCatching {
                     DeviceAccessClient(applicationContext).thermostats()
                 }.getOrElse { error ->
@@ -76,8 +93,8 @@ class SamplingWorker(
                         applicationContext,
                         "Connect Nest Device Access for screen-off indoor readings.$weatherStatus",
                         listOf(
-                            "Google Home's Android API does not return the home structure while the screen is off or locked.",
-                            "Configure Nest Device Access in Settings to remove this limitation.",
+                            "Google Home is selected and requires the display to be on and the phone unlocked.",
+                            "Select Nest Device Access in Settings for screen-off readings.",
                         ),
                     )
                     DataRetention.apply(applicationContext, store)

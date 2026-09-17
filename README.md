@@ -3,7 +3,7 @@
 A deliberately small Android logger for Nest Device Access and Google Home APIs. It:
 
 - connects directly to Google's Smart Device Management API for reliable screen-off Nest readings;
-- keeps Google Home structure access as a screen-on, unlocked fallback;
+- alternatively reads through Google Home while the display is on and the phone is unlocked;
 - samples in the background every 15 minutes using Android WorkManager, enabled by default with a persistent on/off setting;
 - records outdoor temperature and humidity from the Open-Meteo grid for a user-selected location;
 - discovers temperature and relative-humidity traits;
@@ -17,7 +17,7 @@ A deliberately small Android logger for Nest Device Access and Google Home APIs.
 - lets users select a specific compatible indoor device; and
 - shows every returned device type and trait to diagnose whether a Nest thermostat exposes humidity.
 
-There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Nest Device Access works in the background while the display is off. The Google Home Android API fallback is attempted only while the display is on and the phone is unlocked, although Home Climate Monitor itself does not need to remain open or visible.
+There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Users can select either Nest Device Access or Google Home as the indoor source; Device Access is the default whenever it is connected and no explicit choice has been saved. Nest Device Access works in the background while the display is off. Google Home readings are attempted only while the display is on and the phone is unlocked, although Home Climate Monitor itself does not need to remain open or visible.
 
 The daily chart spans midnight through 11:59 PM in the Toronto time zone. Solid lines are indoor Google Home readings and dashed lines are outdoor weather-model readings. Previous and Next navigate among calendar days; Next is hidden on the current day. The outdoor location is selectable in the app, with St. Catharines, Ontario as the non-personal default. Android geocodes the entered place, and only the resulting coordinates are sent to Open-Meteo; Google Home data is never transmitted.
 
@@ -37,7 +37,7 @@ Device Access is the recommended indoor source because it supports screen-off ba
 
 The client secret, access token, and refresh token are encrypted using Android Keystore, excluded from Android backup/device transfer, hidden from screenshots, and erased through the Device Access screen. They are still credentials held by a native client; this direct-phone design is intended for personal sideloaded use.
 
-## Google Home fallback setup
+## Google Home setup
 
 1. Sign in at the [Home APIs SDK setup page](https://developers.home.google.com/apis/android/sdk) and download the current Android SDK ZIP. This checkout uses SDK 1.10.1 extracted into `.home-sdk-repo`; the required Maven artifacts are `play-services-home` and `play-services-home-types` version `17.1.0`.
 2. Create a Google Cloud project and configure its OAuth consent screen.
@@ -45,7 +45,7 @@ The client secret, access token, and refresh token are encrypted using Android K
 4. Create an **Android** OAuth client for package `ca.humiditylogger` using the SHA-1 of the key used to sign the app.
 5. Keep the app unverified for personal testing. Google Home API app registration is not required for testing.
 
-The phone needs current Google Play services. Current Home APIs also expect a supported physical Google Home hub in the structure. In Home Climate Monitor this method is a fallback: scheduled indoor reads are attempted only while the display is on and the phone is unlocked. The app does not need to be the visible foreground app. Use Nest Device Access for reliable screen-off and overnight logging.
+The phone needs current Google Play services. Current Home APIs also expect a supported physical Google Home hub in the structure. Select Google Home under **Settings → Indoor data source** to use this method. Scheduled indoor reads are attempted only while the display is on and the phone is unlocked; the app does not need to be the visible foreground app. Select Nest Device Access instead for reliable screen-off and overnight logging.
 
 ## Build
 
@@ -64,7 +64,7 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Enable instal
 ## First run
 
 1. Configure Nest Device Access using the steps above.
-2. Optionally grant Google Home access as a foreground fallback.
+2. Optionally configure Google Home as an alternative indoor source.
 3. Choose the outdoor location and temperature units.
 4. Leave 15-minute logging enabled. Android may delay individual WorkManager runs.
 5. Optionally configure humidity alerts, retention, and home-screen widgets.
@@ -87,4 +87,4 @@ Background-worker timing and a repeatable Android battery-accounting procedure a
 
 ## What success looks like
 
-After Device Access authorization, a refresh should show the selected Nest thermostat's temperature and humidity and Sampling Health should identify `Nest Device Access (Google SDM)`. With only the Google Home fallback connected, diagnostics should contain `RelativeHumidityMeasurement` with a humidity value.
+After Device Access authorization, a refresh should show the selected Nest thermostat's temperature and humidity and Sampling Health should identify `Nest Device Access (Google SDM)`. With Google Home selected, diagnostics should contain `RelativeHumidityMeasurement` with a humidity value.

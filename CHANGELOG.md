@@ -4,9 +4,9 @@
 
 - Added direct Nest Device Access/SDM authorization and thermostat sampling.
 - Added Android Keystore-backed credential and token storage excluded from backup and screenshots.
-- Added screen-off indoor sampling through SDM with Google Home retained as a foreground fallback.
+- Added selectable Nest Device Access and Google Home indoor sources, defaulting to Device Access when connected.
 - Added thermostat discovery/selection and a dedicated Device Access settings screen.
-- Clarified that Google Home is a screen-on/unlocked fallback, while the one-time US$5 Device Access registration enables screen-off background readings.
+- Clarified that Google Home requires a screen-on/unlocked phone, while the one-time US$5 Device Access registration enables screen-off background readings.
 
 ## 0.2.0
 

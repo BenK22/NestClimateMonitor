@@ -157,7 +157,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun updatePermissionAndSchedule() {
-        if (DeviceAccessStore(this).isConnected()) {
+        val source = IndoorSourcePreference.selected(this)
+        if (source == IndoorSource.DEVICE_ACCESS) {
+            if (!DeviceAccessStore(this).isConnected()) {
+                status.text = "Nest Device Access is selected. Open Settings (⚙) to connect."
+                return
+            }
             if (LoggerScheduler.isEnabled(this)) {
                 LoggerScheduler.start(this)
                 LoggerScheduler.catchUpIfOverdue(this)
@@ -533,9 +538,17 @@ class MainActivity : ComponentActivity() {
         )
         val (googleHomeRow, _) = clickableRow(
             "Google Home access",
-            if (homePermissionGranted) "Connected — screen-on fallback" else "Not connected",
+            if (homePermissionGranted) "Connected — screen-on/unlocked" else "Not connected",
         )
         val deviceAccessStore = DeviceAccessStore(this)
+        val indoorSource = IndoorSourcePreference.selected(this)
+        val (indoorSourceRow, _) = clickableRow(
+            "Indoor data source",
+            when (indoorSource) {
+                IndoorSource.DEVICE_ACCESS -> "Nest Device Access"
+                IndoorSource.GOOGLE_HOME -> "Google Home"
+            },
+        )
         val (deviceAccessRow, _) = clickableRow(
             "Nest Device Access",
             when {
@@ -547,6 +560,13 @@ class MainActivity : ComponentActivity() {
         val (setupRow, _) = clickableRow("Setup guide", "Connection, logging, and widgets")
         panel.addView(
             setupRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) },
+        )
+        panel.addView(
+            indoorSourceRow,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -568,8 +588,12 @@ class MainActivity : ComponentActivity() {
         )
         val selectedThermostat = ThermostatSelection.selectedSource(this)
         val (thermostatRow, _) = clickableRow(
-            if (deviceAccessStore.isConnected()) "Google Home fallback device" else "Indoor device",
-            selectedThermostat ?: "All compatible devices",
+            if (indoorSource == IndoorSource.DEVICE_ACCESS) "Nest thermostat" else "Google Home device",
+            if (indoorSource == IndoorSource.DEVICE_ACCESS) {
+                if (deviceAccessStore.selectedDeviceId() == null) "All Nest thermostats" else "Selected in Device Access"
+            } else {
+                selectedThermostat ?: "All compatible devices"
+            },
         )
         panel.addView(
             thermostatRow,
@@ -655,9 +679,17 @@ class MainActivity : ComponentActivity() {
             dialog.dismiss()
             showSetupGuide()
         }
+        indoorSourceRow.setOnClickListener {
+            dialog.dismiss()
+            showIndoorSourceDialog()
+        }
         thermostatRow.setOnClickListener {
             dialog.dismiss()
-            showThermostatSelectionDialog()
+            if (indoorSource == IndoorSource.DEVICE_ACCESS) {
+                startActivity(Intent(this, DeviceAccessSettingsActivity::class.java))
+            } else {
+                showThermostatSelectionDialog()
+            }
         }
 
         dialog.setOnShowListener {
@@ -889,7 +921,7 @@ class MainActivity : ComponentActivity() {
             message =
                 "1. For reliable background and screen-off readings, register for Nest Device Access (a one-time, non-refundable US$5 Google fee), enter your project credentials, and connect your thermostat.\n\n" +
                     "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery.\n\n" +
-                    "3. Choose an outdoor location. Google Home access is an optional fallback that works only while the display is on and the phone is unlocked; this app does not need to remain visible.\n\n" +
+                    "3. Choose either Nest Device Access or Google Home as the indoor source. Device Access is selected by default when connected. Google Home works only while the display is on and the phone is unlocked; this app does not need to remain visible.\n\n" +
                     "4. Optional: add a climate or graph widget from your launcher.\n\n" +
                     "Sampling health in Settings shows the latest attempt, success, timing, and battery policy.",
             neutralLabel = "Device Access",
@@ -902,6 +934,29 @@ class MainActivity : ComponentActivity() {
                 true
             },
         )
+    }
+
+    private fun showIndoorSourceDialog() {
+        val current = IndoorSourcePreference.selected(this)
+        showStyledOptionsDialog(
+            title = "Indoor data source",
+            options = listOf(
+                "Nest Device Access — background and screen-off",
+                "Google Home — screen-on and unlocked",
+            ),
+            selectedIndex = if (current == IndoorSource.DEVICE_ACCESS) 0 else 1,
+            confirmLabel = "Use source",
+        ) { selected ->
+            val source = if (selected == 0) IndoorSource.DEVICE_ACCESS else IndoorSource.GOOGLE_HOME
+            IndoorSourcePreference.set(this, source)
+            LoggerScheduler.refreshNow(this)
+            lifecycleScope.launch { updatePermissionAndSchedule() }
+            status.text = if (source == IndoorSource.DEVICE_ACCESS) {
+                "Nest Device Access selected"
+            } else {
+                "Google Home selected — display must be on and unlocked"
+            }
+        }
     }
 
     private fun showExportDialog() {

@@ -338,7 +338,10 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private fun renderStatus() {
         val config = store.configuration()
         status.text = when {
-            store.isConnected() -> "Connected to Nest Device Access. Background samples will use Google SDM."
+            store.isConnected() && IndoorSourcePreference.selected(this) == IndoorSource.DEVICE_ACCESS ->
+                "Connected to Nest Device Access and selected for indoor readings."
+            store.isConnected() ->
+                "Connected to Nest Device Access. Select it under Indoor data source to use it."
             store.isConfigured() -> "Credentials saved. Complete Google authorization to connect Nest."
             else -> "Not configured"
         }

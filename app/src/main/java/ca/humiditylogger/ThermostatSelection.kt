@@ -25,8 +25,12 @@ object ThermostatSelection {
 
     fun matches(context: Context, reading: Reading): Boolean {
         if (WeatherClient.isOutdoor(reading.source)) return false
+        val source = IndoorSourcePreference.selected(context)
+        val isDeviceAccessReading = reading.deviceId?.startsWith("enterprises/") == true
+        if (source == IndoorSource.DEVICE_ACCESS && !isDeviceAccessReading) return false
+        if (source == IndoorSource.GOOGLE_HOME && isDeviceAccessReading) return false
         val deviceAccess = DeviceAccessStore(context)
-        if (deviceAccess.isConnected() && reading.deviceId?.startsWith("enterprises/") == true) {
+        if (isDeviceAccessReading) {
             val deviceId = deviceAccess.selectedDeviceId()
             return deviceId == null || reading.deviceId == deviceId
         }
