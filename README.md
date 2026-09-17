@@ -32,7 +32,7 @@ Device Access is the recommended indoor source. Each user supplies their own Goo
 3. Register for [Nest Device Access](https://developers.google.com/nest/device-access/registration), create a Device Access project with Events disabled, and associate the Web OAuth Client ID with it.
 4. For long-lived refresh tokens, move the Google Auth Platform audience from Testing to Production. Personal use does not require OAuth verification, but Google may show an unverified-app warning.
 5. In the app, open **Settings → Nest Device Access**, enter the Device Access Project ID, Web Client ID, and rotated Client Secret, then save.
-6. Tap **Open Google authorization**, grant access, and copy the final redirected URL (or its `code` value) from the browser into the app.
+6. Tap **Open Google authorization** and grant access. Google intentionally finishes on `google.com`; tap Chrome's address bar to reveal and copy the complete `google.com/?code=...` URL, then return to the app. The app imports the copied URL automatically (a bare code can also be pasted manually).
 7. Complete the connection and select a thermostat. The next manual or scheduled sample will use SDM.
 
 The client secret, access token, and refresh token are encrypted using Android Keystore, excluded from Android backup/device transfer, hidden from screenshots, and erased through the Device Access screen. They are still credentials held by a native client; this direct-phone design is intended for personal sideloaded use.

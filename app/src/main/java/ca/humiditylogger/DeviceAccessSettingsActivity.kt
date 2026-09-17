@@ -1,6 +1,7 @@
 package ca.humiditylogger
 
 import android.app.AlertDialog
+import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
@@ -37,10 +38,12 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private lateinit var oauthIndicator: TextView
     private lateinit var projectIndicator: TextView
     private lateinit var connectionIndicator: TextView
+    private var awaitingAuthorization = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        awaitingAuthorization = savedInstanceState?.getBoolean(KEY_AWAITING_AUTHORIZATION) ?: false
         store = DeviceAccessStore(applicationContext)
         setContentView(buildContent())
         renderStatus()
@@ -48,7 +51,15 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (::status.isInitialized) renderStatus()
+        if (::status.isInitialized) {
+            renderStatus()
+            if (awaitingAuthorization) importAuthorizationFromClipboard()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(KEY_AWAITING_AUTHORIZATION, awaitingAuthorization)
+        super.onSaveInstanceState(outState)
     }
 
     private fun buildContent(): View {
@@ -118,6 +129,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(authorizeButton, matchWrap(bottom = 10))
         authorizationCode = field("Authorization code or redirected URL", "", multiline = true)
         content.addView(authorizationCode, matchWrap(bottom = 10))
+        val pasteAuthorizationButton = actionButton("Paste copied Google URL", secondary = true)
+        content.addView(pasteAuthorizationButton, matchWrap(bottom = 10))
         completeButton = actionButton("Complete connection")
         content.addView(completeButton, matchWrap(bottom = 10))
         testButton = actionButton("Test and choose thermostat", secondary = true)
@@ -144,10 +157,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
         }
         authorizeButton.setOnClickListener {
-            runCatching {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DeviceAccessClient(this).authorizationUrl())))
-            }.onFailure(::showError)
+            openGoogleAuthorization()
         }
+        pasteAuthorizationButton.setOnClickListener { importAuthorizationFromClipboard(showFailure = true) }
         completeButton.setOnClickListener { completeConnection() }
         testButton.setOnClickListener { testConnection() }
         disconnectButton.setOnClickListener { confirmDisconnect() }
@@ -199,6 +211,50 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                     LoggerScheduler.refreshNow(this@DeviceAccessSettingsActivity)
                 }
                 .onFailure(::showError)
+        }
+    }
+
+    private fun openGoogleAuthorization() {
+        val url = runCatching { DeviceAccessClient(this).authorizationUrl() }
+            .getOrElse {
+                showError(it)
+                return
+            }
+        AlertDialog.Builder(this)
+            .setTitle("Copy the final Google URL")
+            .setMessage(
+                "After you approve access, Google opens google.com. Chrome may show only “google.com”. " +
+                    "Tap the address bar to reveal the complete address, then copy it and return here. " +
+                    "The app will import the copied authorization code automatically."
+            )
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Open Google") { _, _ ->
+                awaitingAuthorization = true
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            }
+            .show()
+    }
+
+    private fun importAuthorizationFromClipboard(showFailure: Boolean = false) {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        val copied = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
+        // Automatic clipboard import must only accept the redirect URL. The manual field still
+        // accepts a bare code, but treating arbitrary clipboard text as a code is too surprising.
+        val valid = copied.contains("code=") &&
+            runCatching { DeviceAccessClient.extractAuthorizationCode(copied) }.isSuccess
+        if (valid) {
+            authorizationCode.setText(copied)
+            awaitingAuthorization = false
+            status.text = "Authorization URL copied from Chrome. Tap Complete connection."
+            Toast.makeText(this, "Google authorization URL imported", Toast.LENGTH_SHORT).show()
+        } else if (showFailure) {
+            showError(
+                IllegalArgumentException(
+                    "Clipboard does not contain Google's complete authorization URL. Tap Chrome's address bar and copy the full address."
+                )
+            )
+        } else {
+            status.text = "Copy the complete google.com/?code=… address from Chrome, then return here."
         }
     }
 
@@ -431,5 +487,6 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val INCOMPLETE = Color.rgb(255, 111, 97)
         const val DEVICE_ACCESS_CONSOLE_URL = "https://console.nest.google.com/device-access"
         const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
+        const val KEY_AWAITING_AUTHORIZATION = "awaiting_authorization"
     }
 }
