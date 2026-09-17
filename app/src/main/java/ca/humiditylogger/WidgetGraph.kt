@@ -51,15 +51,20 @@ object WidgetGraph {
         val now = System.currentTimeMillis()
         val start = now - GRAPH_WINDOW_MS
         val readings = all.filter { it.timestampMs in start..now }
+        val series = WidgetReadingSelection.select(
+            readings,
+            WeatherLocationStore.get(context).readingSource,
+        ) { ThermostatSelection.matches(context, it) }
+        val displayed = series.displayed
         val fahrenheit = useFahrenheit(context)
         fun displayTemp(c: Double) = if (fahrenheit) c * 9.0 / 5.0 + 32.0 else c
 
-        val temperatures = readings.mapNotNull { it.temperatureC }.map(::displayTemp)
+        val temperatures = displayed.mapNotNull { it.temperatureC }.map(::displayTemp)
         val tempMin = floor((temperatures.minOrNull() ?: if (fahrenheit) 60.0 else 15.0) - 2.0)
         val tempMax = ceil((temperatures.maxOrNull() ?: if (fahrenheit) 80.0 else 25.0) + 2.0)
             .coerceAtLeast(tempMin + 4.0)
 
-        val humidities = readings.mapNotNull { it.humidityPercent }
+        val humidities = displayed.mapNotNull { it.humidityPercent }
         var humidityMin = floor(((humidities.minOrNull() ?: 40.0) - 5.0) / 5.0) * 5.0
         var humidityMax = ceil(((humidities.maxOrNull() ?: 60.0) + 5.0) / 5.0) * 5.0
         if (humidityMax - humidityMin < 20.0) {
@@ -124,12 +129,10 @@ object WidgetGraph {
             })
         }
 
-        val indoor = readings.filter { ThermostatSelection.matches(context, it) }
-        val outdoor = readings.filter { WeatherClient.isOutdoor(it.source) }
-        draw(indoor, { it.temperatureC }, INDOOR_TEMP, false)
-        draw(indoor, { it.humidityPercent }, INDOOR_HUMID, true)
-        draw(outdoor, { it.temperatureC }, OUTDOOR_TEMP, false)
-        draw(outdoor, { it.humidityPercent }, OUTDOOR_HUMID, true)
+        draw(series.indoor, { it.temperatureC }, INDOOR_TEMP, false)
+        draw(series.indoor, { it.humidityPercent }, INDOOR_HUMID, true)
+        draw(series.outdoor, { it.temperatureC }, OUTDOOR_TEMP, false)
+        draw(series.outdoor, { it.humidityPercent }, OUTDOOR_HUMID, true)
         return bitmap
     }
 

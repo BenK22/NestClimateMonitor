@@ -35,6 +35,9 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private lateinit var completeButton: Button
     private lateinit var testButton: Button
     private lateinit var disconnectButton: Button
+    private lateinit var saveOAuthButton: Button
+    private lateinit var saveProjectButton: Button
+    private lateinit var eraseButton: Button
     private lateinit var oauthIndicator: TextView
     private lateinit var projectIndicator: TextView
     private lateinit var connectionIndicator: TextView
@@ -103,7 +106,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             secret = true,
         )
         content.addView(clientSecret, matchWrap(bottom = 10))
-        val saveOAuthButton = actionButton("Save OAuth credentials", secondary = true)
+        saveOAuthButton = actionButton("Save OAuth credentials", secondary = true)
         content.addView(saveOAuthButton, matchWrap(bottom = 10))
         val oauthClientsLink = externalLink("Open Google Auth Platform ↗")
         content.addView(oauthClientsLink, matchWrap(bottom = 8))
@@ -117,7 +120,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(helpText("Create or edit the Nest Device Access project using the OAuth Client ID above. Its Project ID is different from the Google Cloud project ID."))
         projectId = field("Device Access Project ID", config.projectId)
         content.addView(projectId, matchWrap(bottom = 10))
-        val saveProjectButton = actionButton("Save project ID", secondary = true)
+        saveProjectButton = actionButton("Save project ID", secondary = true)
         content.addView(saveProjectButton, matchWrap(bottom = 10))
         val deviceAccessConsoleLink = externalLink("Open Nest Device Access Console ↗")
         content.addView(deviceAccessConsoleLink, matchWrap(bottom = 20))
@@ -139,7 +142,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         content.addView(sectionTitle("Connection data"))
         disconnectButton = actionButton("Disconnect Nest", secondary = true)
         content.addView(disconnectButton, matchWrap(bottom = 10))
-        val eraseButton = actionButton("Erase all Device Access data", destructive = true)
+        eraseButton = actionButton("Erase all Device Access data", destructive = true)
         content.addView(eraseButton, matchWrap(bottom = 18))
         val doneButton = actionButton("Done")
         content.addView(doneButton)
@@ -253,7 +256,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val copied = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
         // Automatic clipboard import must only accept the redirect URL. The manual field still
         // accepts a bare code, but treating arbitrary clipboard text as a code is too surprising.
-        val valid = copied.contains("code=") &&
+        val valid = DeviceAccessClient.isExpectedRedirectUrl(copied) &&
             runCatching { DeviceAccessClient.extractAuthorizationCode(copied) }.isSuccess
         if (valid) {
             authorizationCode.setText(copied)
@@ -378,6 +381,15 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     }
 
     private fun setBusy(busy: Boolean, message: String? = null) {
+        listOf(
+            projectId,
+            clientId,
+            clientSecret,
+            authorizationCode,
+            saveOAuthButton,
+            saveProjectButton,
+            eraseButton,
+        ).forEach { it.isEnabled = !busy }
         authorizeButton.isEnabled = !busy && store.isConfigured()
         completeButton.isEnabled = !busy && store.isConfigured()
         testButton.isEnabled = !busy && store.isConnected()

@@ -147,8 +147,6 @@ object LoggerScheduler {
         diagnostics: List<String>,
         successfulAtMs: Long? = null,
     ) {
-        if (!isEnabled(context)) return
-
         val editor = prefs(context).edit()
             .putString(KEY_STATUS, status)
             .putString(KEY_DIAGNOSTICS, diagnostics.joinToString("\n\n"))

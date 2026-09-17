@@ -43,11 +43,22 @@ class HomeReader private constructor(context: Context) {
         ),
     )
 
-    suspend fun permissionState(): PermissionsState = client.hasPermissions().first {
-        it != PermissionsState.PERMISSIONS_STATE_UNINITIALIZED
-    }
+    suspend fun permissionState(): PermissionsState = withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
+        client.hasPermissions().first {
+            it != PermissionsState.PERMISSIONS_STATE_UNINITIALIZED
+        }
+    } ?: throw IllegalStateException(
+        "Google Home permission check timed out. Keep the phone unlocked and try again."
+    )
 
-    suspend fun sample(): SampleResult {
+    suspend fun sample(): SampleResult = withTimeoutOrNull(HOME_SAMPLE_DEADLINE_MS) {
+        sampleWithinDeadline()
+    } ?: SampleResult(
+        emptyList(),
+        listOf("Google Home read timed out after ${HOME_SAMPLE_DEADLINE_MS / 1_000} seconds. Keep the phone unlocked and try again."),
+    )
+
+    private suspend fun sampleWithinDeadline(): SampleResult {
         val diagnostics = mutableListOf<String>()
         val readings = mutableListOf<Reading>()
         val now = System.currentTimeMillis()
@@ -171,6 +182,8 @@ class HomeReader private constructor(context: Context) {
 
     companion object {
         const val HOME_SYNC_TIMEOUT_MS = 30_000L
+        const val PERMISSION_TIMEOUT_MS = 15_000L
+        const val HOME_SAMPLE_DEADLINE_MS = 45_000L
 
         @Volatile
         private var instance: HomeReader? = null

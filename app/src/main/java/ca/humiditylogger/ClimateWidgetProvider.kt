@@ -37,8 +37,12 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             val showOutside = widthDp >= 220
             val showGraph = showOutside && heightDp >= 100
             val readings = ReadingStore(context).use { it.recent(400) }
-            val indoor = readings.lastOrNull { ThermostatSelection.matches(context, it) }
-            val outdoor = readings.lastOrNull { WeatherClient.isOutdoor(it.source) }
+            val series = WidgetReadingSelection.select(
+                readings,
+                WeatherLocationStore.get(context).readingSource,
+            ) { ThermostatSelection.matches(context, it) }
+            val indoor = series.indoor.lastOrNull()
+            val outdoor = series.outdoor.lastOrNull()
             val fahrenheit = WidgetGraph.useFahrenheit(context)
             val views = RemoteViews(context.packageName, R.layout.widget_climate).apply {
                 setInt(R.id.widget_root, "setBackgroundResource", WidgetAppearance.background(context, id))
@@ -53,7 +57,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                     R.id.widget_graph,
                     WidgetGraph.render(context, readings, widthDp, (heightDp * 0.48).roundToInt()),
                 )
-                val latest = indoor?.timestampMs ?: outdoor?.timestampMs
+                val latest = listOfNotNull(indoor?.timestampMs, outdoor?.timestampMs).maxOrNull()
                 setTextViewText(
                     R.id.widget_updated,
                     latest?.let { "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}" }

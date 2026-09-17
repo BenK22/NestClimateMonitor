@@ -9,7 +9,7 @@ The app communicates with:
 - Android's geocoder when the user changes the outdoor location; and
 - Open-Meteo using the selected location's coordinates to retrieve outdoor temperature and humidity.
 
-Google Home readings are not uploaded by this app. CSV data leaves the app only when the user explicitly invokes Android's share sheet. Humidity notifications are calculated locally. Deleting app storage or using **Stored data → Delete all readings** removes the local history.
+Google Home readings are not uploaded by this app. Android cloud backup and device-to-device transfer are disabled for all app data, including readings, location settings, and credentials. Use the explicit CSV export/import controls to move climate history between devices. CSV data leaves the app only when the user invokes Android's share sheet. Humidity notifications are calculated locally. Deleting app storage or using **Stored data → Delete all readings** removes the local history.
 
 Device Access requests go directly from the phone to Google; there is no developer-operated intermediary. The Device Access client secret and OAuth tokens are encrypted with Android Keystore, excluded from backup and device transfer, and can be erased from **Settings → Nest Device Access**. They are never included in CSV exports.
 

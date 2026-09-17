@@ -17,6 +17,7 @@ object HumidityAlerts {
     private const val CHANNEL_ID = "humidity_alerts"
     private const val NOTIFICATION_ID = 4102
     private const val SAMPLE_INTERVAL_MS = 15L * 60L * 1000L
+    private const val MAX_SAMPLE_GAP_MS = SAMPLE_INTERVAL_MS + 10L * 60L * 1000L
 
     data class Settings(
         val enabled: Boolean,
@@ -97,17 +98,27 @@ object HumidityAlerts {
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
     internal fun determineState(readings: List<Reading>, settings: Settings): String {
-        val latest = readings.lastOrNull() ?: return "normal"
+        val ordered = readings.sortedBy(Reading::timestampMs)
+        val latest = ordered.lastOrNull() ?: return "normal"
         val durationMs = settings.durationMinutes * 60_000L
-        val window = readings.filter { it.timestampMs >= latest.timestampMs - durationMs }
-        val coversDuration = window.firstOrNull()?.timestampMs?.let {
-            latest.timestampMs - it >= durationMs - SAMPLE_INTERVAL_MS
-        } == true
-        return when {
-            coversDuration && window.all { it.humidityPercent != null && it.humidityPercent >= settings.high } -> "high"
-            coversDuration && window.all { it.humidityPercent != null && it.humidityPercent <= settings.low } -> "low"
-            else -> "normal"
+        val latestHumidity = latest.humidityPercent ?: return "normal"
+        val candidate = when {
+            latestHumidity >= settings.high -> "high"
+            latestHumidity <= settings.low -> "low"
+            else -> return "normal"
         }
+        var earliest = latest
+        var later = latest
+        for (reading in ordered.asReversed().drop(1)) {
+            if (later.timestampMs - reading.timestampMs > MAX_SAMPLE_GAP_MS) break
+            val humidity = reading.humidityPercent ?: break
+            val stillOutside = if (candidate == "high") humidity >= settings.high else humidity <= settings.low
+            if (!stillOutside) break
+            earliest = reading
+            later = reading
+            if (latest.timestampMs - earliest.timestampMs >= durationMs) return candidate
+        }
+        return if (durationMs == 0L) candidate else "normal"
     }
 
     private fun createChannel(context: Context) {

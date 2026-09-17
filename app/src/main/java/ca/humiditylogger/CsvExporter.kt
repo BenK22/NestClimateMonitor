@@ -15,27 +15,31 @@ object CsvExporter {
                     "hold_state,change_source,eco_state"
             )
             readings.forEach { reading ->
-                writer.appendLine(
-                    listOf(
-                        Instant.ofEpochMilli(reading.timestampMs).toString(),
-                        reading.timestampMs.toString(),
-                        reading.source,
-                        reading.deviceId.orEmpty(),
-                        reading.temperatureC?.toString().orEmpty(),
-                        reading.humidityPercent?.toString().orEmpty(),
-                        reading.heatingSetpointC?.toString().orEmpty(),
-                        reading.coolingSetpointC?.toString().orEmpty(),
-                        reading.systemMode.orEmpty(),
-                        reading.runningState.orEmpty(),
-                        reading.holdState.orEmpty(),
-                        reading.changeSource.orEmpty(),
-                        reading.ecoState.orEmpty(),
-                    ).joinToString(",", transform = ::csvCell)
-                )
+                writer.appendLine(row(reading))
             }
         }
         return file
     }
+
+    internal fun row(reading: Reading): String =
+        listOf(
+                        Instant.ofEpochMilli(reading.timestampMs).toString(),
+                        reading.timestampMs.toString(),
+                        spreadsheetSafeText(reading.source),
+                        spreadsheetSafeText(reading.deviceId.orEmpty()),
+                        reading.temperatureC?.toString().orEmpty(),
+                        reading.humidityPercent?.toString().orEmpty(),
+                        reading.heatingSetpointC?.toString().orEmpty(),
+                        reading.coolingSetpointC?.toString().orEmpty(),
+                        spreadsheetSafeText(reading.systemMode.orEmpty()),
+                        spreadsheetSafeText(reading.runningState.orEmpty()),
+                        spreadsheetSafeText(reading.holdState.orEmpty()),
+                        spreadsheetSafeText(reading.changeSource.orEmpty()),
+                        spreadsheetSafeText(reading.ecoState.orEmpty()),
+                    ).joinToString(",", transform = ::csvCell)
+
+    internal fun spreadsheetSafeText(value: String): String =
+        if (value.firstOrNull() in setOf('=', '+', '-', '@', '\t', '\r')) "'$value" else value
 
     private fun csvCell(value: String): String =
         if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {

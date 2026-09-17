@@ -21,4 +21,25 @@ class HumidityAlertsTest {
         )
         assertEquals("normal", HumidityAlerts.determineState(readings, settings))
     }
+
+    @Test fun doesNotTriggerOneIntervalEarly() {
+        val readings = (0..3).map { index ->
+            Reading(index * 15L * 60_000L, "Nest", humidityPercent = 65.0, temperatureC = 20.0)
+        }
+        assertEquals("normal", HumidityAlerts.determineState(readings, settings))
+    }
+
+    @Test fun modestWorkManagerDelayStillCountsAsContinuous() {
+        val readings = listOf(0L, 20L, 40L, 60L).map { minute ->
+            Reading(minute * 60_000L, "Nest", humidityPercent = 25.0, temperatureC = 20.0)
+        }
+        assertEquals("low", HumidityAlerts.determineState(readings, settings))
+    }
+
+    @Test fun largeSamplingGapBreaksContinuousDuration() {
+        val readings = listOf(0L, 15L, 30L, 90L).map { minute ->
+            Reading(minute * 60_000L, "Nest", humidityPercent = 65.0, temperatureC = 20.0)
+        }
+        assertEquals("normal", HumidityAlerts.determineState(readings, settings))
+    }
 }

@@ -16,15 +16,19 @@ class SamplingWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = sampleMutex.withLock {
-        if (!LoggerScheduler.isEnabled(applicationContext)) return Result.success()
+        val force = inputData.getBoolean(KEY_FORCE, false)
+        if (!shouldRun(LoggerScheduler.isEnabled(applicationContext), force)) return Result.success()
 
         val startedAt = SystemClock.elapsedRealtime()
         val store = ReadingStore(applicationContext)
         return try {
             val latestIndoorMs = store.recent()
-                .lastOrNull { !WeatherClient.isOutdoor(it.source) }
+                .lastOrNull {
+                    !WeatherClient.isOutdoor(it.source) &&
+                        ThermostatSelection.matches(applicationContext, it)
+                }
                 ?.timestampMs
-            if (!inputData.getBoolean(KEY_FORCE, false) && latestIndoorMs != null &&
+            if (!force && latestIndoorMs != null &&
                 System.currentTimeMillis() - latestIndoorMs < LoggerScheduler.SAMPLE_INTERVAL_MS
             ) {
                 return Result.success()
@@ -159,5 +163,8 @@ class SamplingWorker(
     companion object {
         const val KEY_FORCE = "force_sample"
         private val sampleMutex = Mutex()
+
+        internal fun shouldRun(loggingEnabled: Boolean, force: Boolean): Boolean =
+            loggingEnabled || force
     }
 }

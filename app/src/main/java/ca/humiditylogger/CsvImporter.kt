@@ -1,5 +1,7 @@
 package ca.humiditylogger
 
+import java.io.Reader
+
 object CsvImporter {
     data class Preview(
         val readings: List<Reading>,
@@ -7,7 +9,12 @@ object CsvImporter {
         val invalidCount: Int,
     )
 
-    fun preview(csv: String, existing: List<Reading>): Preview {
+    fun preview(
+        csv: String,
+        existing: List<Reading>,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Preview {
+        require(csv.length <= MAX_CSV_CHARS) { "CSV files are limited to ${MAX_CSV_CHARS / 1_000_000} MB." }
         val rows = parseRows(csv)
         if (rows.isEmpty()) return Preview(emptyList(), 0, 0)
         val header = rows.first().map { it.trim() }
@@ -36,7 +43,7 @@ object CsvImporter {
                     changeSource = value("change_source"),
                     ecoState = value("eco_state"),
                 )
-            }.getOrNull()
+            }.getOrNull()?.takeIf { isValid(it, nowMs) }
             if (reading == null) {
                 invalid++
             } else if (!keys.add(key(reading))) {
@@ -68,12 +75,60 @@ object CsvImporter {
                 !quoted && (char == '\n' || char == '\r') -> {
                     if (char == '\r' && csv.getOrNull(index + 1) == '\n') index++
                     row += cell.toString(); cell.clear(); rows += row; row = mutableListOf()
+                    require(rows.size <= MAX_ROWS) { "CSV files are limited to $MAX_ROWS rows." }
                 }
                 else -> cell.append(char)
             }
             index++
         }
-        if (cell.isNotEmpty() || row.isNotEmpty()) { row += cell.toString(); rows += row }
+        if (cell.isNotEmpty() || row.isNotEmpty()) {
+            row += cell.toString()
+            rows += row
+            require(rows.size <= MAX_ROWS) { "CSV files are limited to $MAX_ROWS rows." }
+        }
         return rows
     }
+
+    fun readLimited(reader: Reader): String {
+        val result = StringBuilder()
+        val buffer = CharArray(8_192)
+        while (true) {
+            val count = reader.read(buffer)
+            if (count < 0) break
+            if (result.length + count > MAX_CSV_CHARS) {
+                throw IllegalArgumentException("CSV files are limited to ${MAX_CSV_CHARS / 1_000_000} MB.")
+            }
+            result.append(buffer, 0, count)
+        }
+        return result.toString()
+    }
+
+    private fun isValid(reading: Reading, nowMs: Long): Boolean {
+        if (reading.timestampMs !in MIN_TIMESTAMP_MS..(nowMs + MAX_FUTURE_SKEW_MS)) return false
+        if (reading.source.isBlank() || reading.source.length > MAX_TEXT_LENGTH) return false
+        if (reading.deviceId?.length.orZero() > MAX_TEXT_LENGTH) return false
+        if (!validTemperature(reading.temperatureC) || !validTemperature(reading.heatingSetpointC) ||
+            !validTemperature(reading.coolingSetpointC)
+        ) return false
+        val humidity = reading.humidityPercent
+        if (humidity != null && (!humidity.isFinite() || humidity !in 0.0..100.0)) return false
+        return listOf(
+            reading.systemMode,
+            reading.runningState,
+            reading.holdState,
+            reading.changeSource,
+            reading.ecoState,
+        ).all { it == null || it.length <= MAX_TEXT_LENGTH }
+    }
+
+    private fun validTemperature(value: Double?): Boolean =
+        value == null || (value.isFinite() && value in -100.0..100.0)
+
+    private fun Int?.orZero(): Int = this ?: 0
+
+    const val MAX_CSV_CHARS = 10_000_000
+    private const val MAX_ROWS = 100_000
+    private const val MAX_TEXT_LENGTH = 512
+    private const val MIN_TIMESTAMP_MS = 946_684_800_000L // 2000-01-01 UTC
+    private const val MAX_FUTURE_SKEW_MS = 24L * 60L * 60L * 1000L
 }

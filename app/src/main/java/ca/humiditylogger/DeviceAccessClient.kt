@@ -126,6 +126,14 @@ class DeviceAccessClient(context: Context) {
     }
 
     companion object {
+        internal fun isExpectedRedirectUrl(value: String): Boolean {
+            val uri = runCatching { URI(value.trim()) }.getOrNull() ?: return false
+            if (!uri.scheme.equals("https", ignoreCase = true)) return false
+            if (!uri.host.equals("www.google.com", ignoreCase = true)) return false
+            if (uri.path !in listOf(null, "", "/")) return false
+            return runCatching { extractAuthorizationCode(value) }.isSuccess
+        }
+
         internal fun extractAuthorizationCode(value: String): String {
             val trimmed = value.trim()
             require(trimmed.isNotBlank()) { "Paste the authorization code or redirected URL." }
@@ -145,11 +153,14 @@ class DeviceAccessClient(context: Context) {
         private fun encodePath(value: String): String = encode(value).replace("+", "%20")
         private fun oauthError(json: JSONObject): String = json.optString("error_description")
             .takeIf { it.isNotBlank() } ?: json.optString("error", "OAuth token request failed.")
-        private fun apiError(status: Int, body: String): String {
+        internal fun apiError(status: Int, body: String): String {
             val message = runCatching {
-                JSONObject(body).optJSONObject("error")?.optString("message")
-            }.getOrNull()?.takeIf { it.isNotBlank() }
-            return "Google SDM request failed ($status)${message?.let { ": $it" }.orEmpty()}"
+                val json = JSONObject(body)
+                json.optString("error_description").takeIf { it.isNotBlank() }
+                    ?: json.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() }
+                    ?: json.optString("error").takeIf { it.isNotBlank() }
+            }.getOrNull()
+            return "Google request failed ($status)${message?.let { ": $it" }.orEmpty()}"
         }
 
         const val REDIRECT_URI = "https://www.google.com"

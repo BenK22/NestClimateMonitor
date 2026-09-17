@@ -2,6 +2,8 @@ package ca.humiditylogger
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DeviceAccessParserTest {
@@ -44,6 +46,26 @@ class DeviceAccessParserTest {
             DeviceAccessClient.extractAuthorizationCode(
                 "https://www.google.com/?code=code%2Fwith%2Bcharacters&scope=sdm"
             ),
+        )
+    }
+
+    @Test
+    fun automaticClipboardImportRequiresTheConfiguredRedirectOrigin() {
+        assertTrue(DeviceAccessClient.isExpectedRedirectUrl("https://www.google.com/?code=good"))
+        assertFalse(DeviceAccessClient.isExpectedRedirectUrl("https://evil.example/?code=stolen"))
+        assertFalse(DeviceAccessClient.isExpectedRedirectUrl("not a url with code=anything"))
+        assertFalse(DeviceAccessClient.isExpectedRedirectUrl("http://www.google.com/?code=insecure"))
+    }
+
+    @Test
+    fun surfacesOAuthAndSdmErrorMessages() {
+        assertEquals(
+            "Google request failed (400): The OAuth client was deleted.",
+            DeviceAccessClient.apiError(400, """{"error":"invalid_client","error_description":"The OAuth client was deleted."}"""),
+        )
+        assertEquals(
+            "Google request failed (403): Permission denied",
+            DeviceAccessClient.apiError(403, """{"error":{"message":"Permission denied"}}"""),
         )
     }
 

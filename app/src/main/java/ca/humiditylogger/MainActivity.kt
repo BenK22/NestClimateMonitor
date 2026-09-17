@@ -924,7 +924,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val preview = withContext(Dispatchers.IO) {
                 runCatching {
-                    val csv = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    val csv = contentResolver.openInputStream(uri)?.bufferedReader()?.use(CsvImporter::readLimited)
                         ?: error("The selected file could not be opened")
                     CsvImporter.preview(csv, store.all())
                 }
