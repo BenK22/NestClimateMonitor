@@ -1137,6 +1137,29 @@ class MainActivity : ComponentActivity() {
             cornerRadius = dp(12).toFloat()
             setStroke(dp(1), Color.rgb(48, 70, 63))
         }
+        fun fieldGroup(title: String, explanation: String, input: EditText) =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(this@MainActivity).apply {
+                    text = title
+                    textSize = 14f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(TEXT_PRIMARY)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = explanation
+                    textSize = 12f
+                    setTextColor(TEXT_SECONDARY)
+                    setPadding(0, dp(2), 0, dp(6))
+                })
+                addView(
+                    input,
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+            }
         val current = HumidityAlerts.settings(this)
         val enabled = Switch(this).apply {
             text = "Enable humidity notifications"
@@ -1145,7 +1168,8 @@ class MainActivity : ComponentActivity() {
             textSize = 15f
         }
         val low = EditText(this).apply {
-            hint = "Low threshold (%)"
+            hint = "Percentage, for example 30"
+            contentDescription = "Low indoor humidity threshold percentage"
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(current.low.toString())
             setTextColor(TEXT_PRIMARY)
@@ -1154,7 +1178,8 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(14), dp(12), dp(14), dp(12))
         }
         val high = EditText(this).apply {
-            hint = "High threshold (%)"
+            hint = "Percentage, for example 60"
+            contentDescription = "High indoor humidity threshold percentage"
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(current.high.toString())
             setTextColor(TEXT_PRIMARY)
@@ -1196,17 +1221,38 @@ class MainActivity : ComponentActivity() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(enabled)
-            addView(low, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            addView(TextView(this@MainActivity).apply {
+                text = "A notification is sent when indoor humidity remains outside the selected range."
+                textSize = 12f
+                setTextColor(TEXT_SECONDARY)
+                setPadding(0, dp(5), 0, 0)
+            })
+            addView(fieldGroup(
+                "Low humidity threshold (%)",
+                "Alert when indoor humidity remains below this value.",
+                low,
+            ), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(12)
             })
-            addView(high, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(8)
+            addView(fieldGroup(
+                "High humidity threshold (%)",
+                "Alert when indoor humidity remains above this value.",
+                high,
+            ), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(12)
             })
             addView(TextView(this@MainActivity).apply {
-                text = "Condition duration"
-                textSize = 13f
+                text = "Time outside range"
+                textSize = 14f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(TEXT_PRIMARY)
+                setPadding(0, dp(14), 0, 0)
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = "Humidity must stay below or above a threshold for this long before alerting."
+                textSize = 12f
                 setTextColor(TEXT_SECONDARY)
-                setPadding(0, dp(14), 0, dp(5))
+                setPadding(0, dp(2), 0, dp(5))
             })
             addView(durationRow)
         }
