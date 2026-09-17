@@ -23,21 +23,6 @@ class SamplingWorker(
         val startedAt = SystemClock.elapsedRealtime()
         val store = ReadingStore(applicationContext)
         return try {
-            val latestIndoorMs = store.recent()
-                .lastOrNull {
-                    !WeatherClient.isOutdoor(it.source) &&
-                        ThermostatSelection.matches(applicationContext, it) &&
-                        it.hasClimateMeasurement()
-                }
-                ?.timestampMs
-            if (!force && latestIndoorMs != null && isFresh(
-                    timestampMs = latestIndoorMs,
-                    nowMs = System.currentTimeMillis(),
-                )
-            ) {
-                return Result.success()
-            }
-
             val deviceAccessStore = DeviceAccessStore(applicationContext)
             val indoorSource = IndoorSourcePreference.selected(applicationContext)
             val indoorReadings: List<Reading>
@@ -172,9 +157,6 @@ class SamplingWorker(
 
         internal fun shouldRun(loggingEnabled: Boolean, force: Boolean): Boolean =
             loggingEnabled || force
-
-        internal fun isFresh(timestampMs: Long, nowMs: Long): Boolean =
-            timestampMs <= nowMs && nowMs - timestampMs < LoggerScheduler.SAMPLE_INTERVAL_MS
 
         internal data class ClimateOutcome(val status: String, val successful: Boolean)
 

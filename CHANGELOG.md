@@ -12,6 +12,7 @@
 - Improved widget graph sharpness and scaling, chart day-navigation state, and exact CSV backup round trips.
 - Fixed Linux release execution by tracking the Gradle wrapper as executable.
 - Added a bounded, credential-redacted sampling failure history to Sampling Health.
+- Stopped app launch, source changes, and Device Access setup from implicitly sampling; manual refresh no longer alters or suppresses the periodic cadence.
 
 ## 0.2.0
 

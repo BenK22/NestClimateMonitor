@@ -37,7 +37,8 @@ object LoggerScheduler {
         val workManager = WorkManager.getInstance(context)
         workManager.cancelUniqueWork(LEGACY_CATCH_UP_WORK_NAME)
 
-        val request = PeriodicWorkRequestBuilder<SamplingWorker>(15, TimeUnit.MINUTES)
+        val request = PeriodicWorkRequestBuilder<SamplingWorker>(SAMPLE_INTERVAL_MINUTES, TimeUnit.MINUTES)
+            .setInitialDelay(SAMPLE_INTERVAL_MINUTES, TimeUnit.MINUTES)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -47,7 +48,7 @@ object LoggerScheduler {
 
         workManager.enqueueUniquePeriodicWork(
             WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
+            PERIODIC_WORK_POLICY,
             request,
         )
 
@@ -82,16 +83,12 @@ object LoggerScheduler {
     }
 
     fun refreshNow(context: Context) {
-        enqueueOneTimeSample(context, force = true)
+        enqueueOneTimeSample(context)
     }
 
-    fun catchUpIfOverdue(context: Context) {
-        enqueueOneTimeSample(context, force = false)
-    }
-
-    private fun enqueueOneTimeSample(context: Context, force: Boolean) {
+    private fun enqueueOneTimeSample(context: Context) {
         val request = OneTimeWorkRequestBuilder<SamplingWorker>()
-            .setInputData(workDataOf(SamplingWorker.KEY_FORCE to force))
+            .setInputData(workDataOf(SamplingWorker.KEY_FORCE to true))
             .setConstraints(
                 Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
             )
@@ -216,7 +213,8 @@ object LoggerScheduler {
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    const val SAMPLE_INTERVAL_MS = 15L * 60L * 1000L
+    internal const val SAMPLE_INTERVAL_MINUTES = 15L
+    internal val PERIODIC_WORK_POLICY = ExistingPeriodicWorkPolicy.KEEP
     private const val MAX_ERROR_HISTORY = 20
     private const val MAX_ERROR_MESSAGE_LENGTH = 300
     private val SENSITIVE_VALUE = Regex(

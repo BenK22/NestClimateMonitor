@@ -1,11 +1,18 @@
 package ca.humiditylogger
 
+import androidx.work.ExistingPeriodicWorkPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LoggerSchedulerTest {
+    @Test
+    fun periodicScheduleIsKeptAtFifteenMinutes() {
+        assertEquals(15L, LoggerScheduler.SAMPLE_INTERVAL_MINUTES)
+        assertEquals(ExistingPeriodicWorkPolicy.KEEP, LoggerScheduler.PERIODIC_WORK_POLICY)
+    }
+
     @Test
     fun errorHistorySurvivesLaterEntriesAndKeepsTheNewestTwenty() {
         var serialized: String? = null

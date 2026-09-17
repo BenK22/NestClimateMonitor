@@ -165,7 +165,6 @@ class MainActivity : ComponentActivity() {
             }
             if (LoggerScheduler.isEnabled(this)) {
                 LoggerScheduler.start(this)
-                LoggerScheduler.catchUpIfOverdue(this)
                 status.text = LoggerScheduler.status(this)
                     ?: "Nest Device Access background logging is active"
             } else {
@@ -181,7 +180,6 @@ class MainActivity : ComponentActivity() {
             if (granted) {
                 if (LoggerScheduler.isEnabled(this)) {
                     LoggerScheduler.start(this)
-                    LoggerScheduler.catchUpIfOverdue(this)
                     status.text = LoggerScheduler.status(this)
                         ?: "15-minute background logging is active"
                 } else {
@@ -988,7 +986,7 @@ class MainActivity : ComponentActivity() {
             title = "Set up Home Climate Monitor",
             message =
                 "1. For reliable background and screen-off readings, register for Nest Device Access (a one-time, non-refundable US$5 Google fee), enter your project credentials, and connect your thermostat.\n\n" +
-                    "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery.\n\n" +
+                    "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery. Opening the app does not sample; use Refresh now for an extra reading without changing the periodic schedule.\n\n" +
                     "3. Choose either Nest Device Access or Google Home as the indoor source. Device Access is selected by default when connected. Google Home works only while the display is on and the phone is unlocked; this app does not need to remain visible.\n\n" +
                     "4. Optional: add a climate or graph widget from your launcher.\n\n" +
                     "Sampling health in Settings shows the latest attempt, success, timing, and battery policy.",
@@ -1017,7 +1015,6 @@ class MainActivity : ComponentActivity() {
         ) { selected ->
             val source = if (selected == 0) IndoorSource.DEVICE_ACCESS else IndoorSource.GOOGLE_HOME
             IndoorSourcePreference.set(this, source)
-            LoggerScheduler.refreshNow(this)
             lifecycleScope.launch { updatePermissionAndSchedule() }
             status.text = if (source == IndoorSource.DEVICE_ACCESS) {
                 "Nest Device Access selected"

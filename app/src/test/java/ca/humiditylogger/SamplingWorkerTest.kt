@@ -18,14 +18,6 @@ class SamplingWorkerTest {
     }
 
     @Test
-    fun futureReadingsNeverSuppressLiveSampling() {
-        val now = 1_700_000_000_000L
-        assertTrue(SamplingWorker.isFresh(now - 1_000, now))
-        assertFalse(SamplingWorker.isFresh(now + 1, now))
-        assertFalse(SamplingWorker.isFresh(now - LoggerScheduler.SAMPLE_INTERVAL_MS, now))
-    }
-
-    @Test
     fun traitlessThermostatIsNotAClimateSuccess() {
         val outcome = SamplingWorker.climateOutcome(
             listOf(Reading(1, "Nest", "device", null, null)),

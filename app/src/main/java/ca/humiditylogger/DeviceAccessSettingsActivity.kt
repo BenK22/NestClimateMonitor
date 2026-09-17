@@ -229,7 +229,6 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                     authorizationCode.setText("")
                     chooseThermostat(readings)
                     renderIndicators()
-                    LoggerScheduler.refreshNow(this@DeviceAccessSettingsActivity)
                 }
                 .onFailure(::showError)
         }
@@ -309,7 +308,6 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             store.setSelectedDeviceId(thermostat.deviceId)
             status.text = "Connected to ${thermostat.source}."
             renderIndicators()
-            LoggerScheduler.refreshNow(this)
             ClimateWidgetProvider.updateAll(applicationContext)
             AlertDialog.Builder(this)
                 .setTitle("Thermostat selected")
@@ -337,7 +335,6 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                 store.setSelectedDeviceId(readings[which].deviceId)
                 status.text = "Connected to ${readings[which].source}."
                 renderIndicators()
-                LoggerScheduler.refreshNow(this@DeviceAccessSettingsActivity)
                 ClimateWidgetProvider.updateAll(applicationContext)
                 dialog.dismiss()
             }
