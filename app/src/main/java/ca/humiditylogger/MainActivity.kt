@@ -157,6 +157,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun updatePermissionAndSchedule() {
+        val homePermissionResult = runCatching { reader.permissionState() }
+        homePermissionGranted = homePermissionResult.getOrNull() == PermissionsState.GRANTED
         val source = IndoorSourcePreference.selected(this)
         if (source == IndoorSource.DEVICE_ACCESS) {
             if (!DeviceAccessStore(this).isConnected()) {
@@ -173,7 +175,7 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        runCatching { reader.permissionState() }.onSuccess { state ->
+        homePermissionResult.onSuccess { state ->
             val granted = state == PermissionsState.GRANTED
             homePermissionGranted = granted
             if (granted) {
