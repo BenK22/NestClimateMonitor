@@ -28,7 +28,7 @@ The author has chosen `Benjamin Kar <benjkar@hotmail.com>` for public commit att
 Create an empty GitHub repository without an initial README, license, or `.gitignore`, then use the URL GitHub provides:
 
 ```powershell
-git remote add origin https://github.com/YOUR_USERNAME/NestClimateMonitor.git
+git remote add origin https://github.com/BenK22/NestClimateMonitor.git
 git push -u origin main
 ```
 

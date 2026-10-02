@@ -19,7 +19,8 @@ PATTERNS = {
 EMAIL = re.compile(rb"[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 # The project owner explicitly chose this identity for public Git attribution.
 PUBLIC_EMAILS = {b"benjkar@hotmail.com"}
-PUBLIC_NAMES = {"Benjamin Kar", "Home Climate Monitor contributors"}
+PUBLIC_BOT_EMAILS = {b"noreply@github.com", b"web-flow@github.com"}
+PUBLIC_NAMES = {"Benjamin Kar", "Ben Kar", "GitHub", "Home Climate Monitor contributors"}
 LOCAL_DIRS = {".beads", ".aws", ".ssh", ".codex", ".agents", ".private-backups", ".home-sdk-repo"}
 LOCAL_SUFFIXES = {".apk", ".aab", ".jks", ".keystore", ".pem", ".key", ".p12", ".pfx", ".bundle", ".db", ".sqlite", ".sqlite3", ".csv", ".log"}
 
@@ -29,7 +30,7 @@ def git(*args):
 
 
 def public_email(domain, email=b""):
-    if email.lower() in PUBLIC_EMAILS:
+    if email.lower() in PUBLIC_EMAILS or email.lower() in PUBLIC_BOT_EMAILS:
         return True
     value = domain.decode("ascii").lower()
     return value in {"example.com", "example.org", "example.net", "example.invalid"} or value.endswith(".example.invalid") or value == "users.noreply.github.com"
