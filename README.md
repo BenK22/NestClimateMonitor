@@ -25,6 +25,18 @@ The daily chart spans midnight through 11:59 PM in the phone's current time zone
 
 Outdoor weather data is provided by [Open-Meteo](https://open-meteo.com/) under CC BY 4.0. The free endpoint is intended for non-commercial use; review Open-Meteo's current terms before distributing a commercial build.
 
+## Screenshots
+
+| Dashboard | History and daily summaries |
+| --- | --- |
+| [<img src="docs/screenshots/dashboard.png" width="260" alt="Nest Climate Monitor dashboard with indoor and outdoor readings, dew point, and daily history">](docs/screenshots/dashboard.png) | [<img src="docs/screenshots/daily-history.png" width="260" alt="Daily temperature and humidity graph, chart key, minimum, maximum, and average readings">](docs/screenshots/daily-history.png) |
+
+| Connections and logging | Display, alerts, and stored data |
+| --- | --- |
+| [<img src="docs/screenshots/settings-connections.png" width="260" alt="Settings for Nest Device Access, Google Home, thermostat selection, and logging">](docs/screenshots/settings-connections.png) | [<img src="docs/screenshots/settings-data.png" width="260" alt="Settings for temperature units, outdoor location, humidity alerts, and CSV backup and restore">](docs/screenshots/settings-data.png) |
+
+Click a screenshot to view it at full size. Private device identifiers are hidden.
+
 ## Nest Device Access setup
 
 Device Access is the recommended indoor source because it supports screen-off background readings. Registration has a one-time, non-refundable **US$5 fee per Google account**. Each user supplies their own Google credentials directly on the phone; no credentials are compiled into the APK or repository.

@@ -6,7 +6,7 @@ The source does not contain a user's Google credentials, Device Access identifie
 
 `.gitignore` excludes downloaded Google Home SDK files, local Android paths, IDE and Gradle caches, signing keys, environment files, common OAuth/service-account credential files, logs, databases, CSV exports, Beads records, agent configuration, and private backup bundles. Ignoring a file does not remove an older committed copy; check history as well as the current files.
 
-Keep private data in those ignored locations. Generic filenames cannot catch every credential file. Screenshots and artwork must be reviewed visually before upload; hide account details, home addresses, unrelated notifications, and personal home-screen content. Only the app icon artwork is included in this checkout.
+Keep private data in those ignored locations. Generic filenames cannot catch every credential file. Screenshots and artwork must be reviewed visually before upload; hide account details, home addresses, private device identifiers, unrelated notifications, and personal home-screen content. This checkout includes app icon artwork and reviewed app screenshots; the history screenshot has its device identifier redacted.
 
 The local `.private-backups/` directory can contain an original history bundle. That bundle contains private author and issue metadata and must remain local. Do not upload a ZIP of the full working directory, mirror the private backup, or restore the old history into the public repository.
 
