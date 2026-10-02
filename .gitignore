@@ -9,6 +9,7 @@
 /.beads/
 /.codex/
 /.agents/
+/AGENTS.md
 /.aws/
 /.ssh/
 /.gcloud/

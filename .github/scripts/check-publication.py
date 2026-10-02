@@ -88,6 +88,7 @@ def main():
         metadata, name = row.split(b"\t", 1)
         path = name.decode("utf-8", errors="replace")
         entries.append((metadata.split()[1].decode("ascii"), path))
+    tracked_paths = {path for _, path in entries}
     if args.history:
         for row in git("rev-list", "--objects", "--all").decode("utf-8", errors="replace").splitlines():
             oid, _, path = row.partition(" ")
@@ -99,7 +100,10 @@ def main():
         raise subprocess.CalledProcessError(ignored.returncode, ignored.args)
     ignored_paths = {path.decode("utf-8", errors="replace") for path in ignored.stdout.split(b"\0") if path}
     for path, content in blobs(sorted(set(entries))):
-        if path in ignored_paths or local_path(path):
+        # Previously published instructions may remain in old commits. Their
+        # contents are still checked; tracking them again is still rejected.
+        historical_instructions = path == "AGENTS.md" and path not in tracked_paths
+        if (path in ignored_paths and not historical_instructions) or local_path(path):
             findings.add((path, "local-only file in Git"))
         check_content(path, content, findings)
     if args.history:
