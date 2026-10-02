@@ -37,6 +37,14 @@ Outdoor weather data is provided by [Open-Meteo](https://open-meteo.com/) under 
 
 Click a screenshot to view it at full size. Private device identifiers are hidden.
 
+## Install the APK
+
+Download the signed APK from [GitHub Releases](https://github.com/BenK22/NestClimateMonitor/releases). The first release is a prerelease intended for personal sideloading on **Android 10 or newer**. Allow installation from your browser or file manager, then open the APK. Google connection setup is still required; each user supplies their own credentials.
+
+The release includes a SHA-256 checksum, and the public release-signing fingerprint is documented in [docs/RELEASING.md](docs/RELEASING.md) for Google Home Android OAuth setup.
+
+If you already use a development/debug build, export your readings before switching: Android cannot install a differently signed release over it. Switching requires uninstalling the debug build, installing the release, importing the CSV, and reconnecting Google. Updates between official releases use the same signing key and can be installed over the previous release.
+
 ## Nest Device Access setup
 
 Device Access is the recommended indoor source because it supports screen-off background readings. Registration has a one-time, non-refundable **US$5 fee per Google account**. Each user supplies their own Google credentials directly on the phone; no credentials are compiled into the APK or repository.

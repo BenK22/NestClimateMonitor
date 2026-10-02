@@ -9,7 +9,31 @@ permissions:
   contents: write
 
 jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.signing.outputs.ready }}
+    steps:
+      - name: Check whether automatic signing is configured
+        id: signing
+        env:
+          HOME_SDK_URL: ${{ secrets.HOME_SDK_URL }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          ready=true
+          for name in HOME_SDK_URL RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then ready=false; fi
+          done
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          if [ "$ready" = false ]; then
+            echo "::notice::Automatic signing is not configured. Tag builds will be skipped; locally signed APKs can be uploaded manually."
+          fi
   build:
+    needs: configuration
+    if: needs.configuration.outputs.ready == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
