@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NestClimateMonitor</string>
+    <string name="app_name">Nest Climate Monitor</string>
     <string name="widget_name">Nest Climate</string>
     <string name="widget_description">Indoor and outdoor temperature and humidity</string>
     <string name="graph_widget_name">Climate History Graph</string>

@@ -1,4 +1,4 @@
-# NestClimateMonitor
+# Nest Climate Monitor
 
 An Android app for tracking Nest thermostat temperature and humidity alongside local outdoor weather, with on-device history, charts, and home-screen widgets. It connects directly to Google without a separate server. It:
 
@@ -17,7 +17,7 @@ An Android app for tracking Nest thermostat temperature and humidity alongside l
 - lets users select a specific compatible indoor device; and
 - shows returned climate-device types and traits to diagnose whether a thermostat exposes humidity.
 
-There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Users can select either Nest Device Access or Google Home as the indoor source; Device Access is the default whenever it is connected and no explicit choice has been saved. Nest Device Access works in the background while the display is off. Google Home readings are attempted only while the display is on and the phone is unlocked, although NestClimateMonitor itself does not need to remain open or visible.
+There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Users can select either Nest Device Access or Google Home as the indoor source; Device Access is the default whenever it is connected and no explicit choice has been saved. Nest Device Access works in the background while the display is off. Google Home readings are attempted only while the display is on and the phone is unlocked, although Nest Climate Monitor itself does not need to remain open or visible.
 
 Opening or returning to the app does not request a sample. Readings are requested only by the independent periodic worker or by **Settings → Refresh now**. A manual refresh does not replace, postpone, or suppress the next periodic worker run.
 
@@ -75,7 +75,7 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Enable instal
 
 All history remains on the phone unless the user explicitly shares a CSV. See [PRIVACY.md](PRIVACY.md).
 
-CSV exports include spreadsheet-safe display columns plus encoded companion columns used by NestClimateMonitor to restore text fields exactly. Older exports without the companion columns remain importable.
+CSV exports include spreadsheet-safe display columns plus encoded companion columns used by Nest Climate Monitor to restore text fields exactly. Older exports without the companion columns remain importable.
 
 ## Publishing this repository
 
@@ -99,4 +99,4 @@ After Device Access authorization, a refresh should show the selected Nest therm
 
 ## License
 
-The original project source is licensed under the [MIT License](LICENSE), copyright Benjamin Kar. Third-party SDKs and weather data retain their own licenses and terms. NestClimateMonitor is an independent project and is not affiliated with or endorsed by Google or Nest.
+The original project source is licensed under the [MIT License](LICENSE), copyright Benjamin Kar. Third-party SDKs and weather data retain their own licenses and terms. Nest Climate Monitor is an independent project and is not affiliated with or endorsed by Google or Nest.

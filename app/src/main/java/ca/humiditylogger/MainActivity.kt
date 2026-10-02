@@ -983,7 +983,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showSetupGuide() {
         showStyledDialog(
-            title = "Set up NestClimateMonitor",
+            title = "Set up ${getString(R.string.app_name)}",
             message =
                 "1. For reliable background and screen-off readings, register for Nest Device Access (a one-time, non-refundable US$5 Google fee), enter your project credentials, and connect your thermostat.\n\n" +
                     "2. Leave 15-minute logging enabled. Android may defer a sample slightly to save battery. Opening the app does not sample; use Refresh now for an extra reading without changing the periodic schedule.\n\n" +
@@ -1629,7 +1629,7 @@ class MainActivity : ComponentActivity() {
         }
         header.addView(
             TextView(this).apply {
-                text = "NestClimateMonitor"
+                text = getString(R.string.app_name)
                 textSize = 24f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(TEXT_PRIMARY)

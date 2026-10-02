@@ -1,6 +1,6 @@
 # Privacy
 
-NestClimateMonitor stores climate readings locally in its private Android database. It has no developer-operated server, advertising, analytics, or telemetry.
+Nest Climate Monitor stores climate readings locally in its private Android database. It has no developer-operated server, advertising, analytics, or telemetry.
 
 The app communicates with:
 
