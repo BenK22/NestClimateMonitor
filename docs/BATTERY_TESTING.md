@@ -15,4 +15,3 @@ Android's per-UID battery accounting is the best practical energy estimate witho
 7. Compare estimated UID power, background CPU time, jobs, network bytes, and wake locks against elapsed screen-off time and recorded worker runs.
 
 A useful acceptance target is that the app has no foreground-service time or long wake locks and that roughly one short worker execution appears per eligible 15-minute interval. WorkManager can batch or defer runs in Doze, so fewer executions are normal.
-

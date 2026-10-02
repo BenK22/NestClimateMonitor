@@ -53,7 +53,7 @@ The phone needs current Google Play services. Current Home APIs also expect a su
 
 The project requires JDK 17, Android SDK 36, and Android Studio/Gradle capable of Android Gradle Plugin 8.9.3. Open this folder in a current Android Studio, let it install missing SDK components, then run the `app` configuration on the phone.
 
-This workstation has Android SDK Platform 36 and Build Tools 35 installed. The signed-in Home APIs SDK is stored in the ignored `.home-sdk-repo` directory.
+Install Android SDK Platform 36 and the build tools required by Gradle. Keep your SDK path in the ignored `local.properties` file, or let Android Studio create it. The signed-in Home APIs SDK belongs in the ignored `.home-sdk-repo` directory.
 
 Once those artifacts are installed, build the debug APK with:
 
@@ -80,6 +80,8 @@ CSV exports include spreadsheet-safe display columns plus encoded companion colu
 Do not commit the downloaded Home APIs SDK ZIP or its extracted Maven repository. They are ignored as `home.android.sdk_*.zip` and `.home-sdk-repo/`; each developer must download the SDK while signed in to Google Home Developers. Local Android SDK paths, Gradle/build output, APK/AAB files, signing keys, environment files, and common secret-property files are also ignored.
 
 The Google Home Android OAuth client ID is associated with the application ID and signing-certificate SHA-1 in Google Cloud; it is not embedded in this project. Device Access project/client identifiers are entered at runtime, and its client secret and tokens must never be added to source, build configuration, screenshots, issues, or documentation.
+
+Local Beads issue records, agent settings, credential files, diagnostic logs, databases, CSV exports, and private history backups are ignored. Keep them on your machine; upload the Git repository contents rather than a ZIP of the entire working folder. The public commit history uses a generic contributor identity. See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the publication checks and GitHub upload steps.
 
 Release signing and automation are documented in [docs/RELEASING.md](docs/RELEASING.md). Screenshot guidance is in [docs/screenshots/README.md](docs/screenshots/README.md). The project is available under the [MIT License](LICENSE), and user-facing changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
