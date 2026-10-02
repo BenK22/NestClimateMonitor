@@ -148,6 +148,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             content.addView(view)
         }
         content.addView(helpText("1. Open Google authorization.\n2. Allow access to your home and thermostat.\n3. At the Google page, tap the address bar and copy the complete URL.\n4. Return to this app.\n5. Paste the copied Google URL below."))
+        content.addView(helpText("Weekly permission renewal: In Google OAuth Testing mode, Nest authorization expires after about 7 days, even with regular sampling. If readings stop because authorization expired, repeat these steps and tap Complete connection to regenerate it. Keep your saved OAuth credentials and Device Access project ID."))
         authorizeButton = actionButton("Open Google authorization")
         content.addView(authorizeButton, matchWrap(bottom = 10))
         authorizationCode = field("Complete redirected Google URL", "", multiline = true)

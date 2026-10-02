@@ -17,5 +17,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Home Climate Monitor"
+rootProject.name = "NestClimateMonitor"
 include(":app")

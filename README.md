@@ -1,6 +1,6 @@
-# Home Climate Monitor
+# NestClimateMonitor
 
-A deliberately small Android logger for Nest Device Access and Google Home APIs. It:
+An Android app for tracking Nest thermostat temperature and humidity alongside local outdoor weather, with on-device history, charts, and home-screen widgets. It connects directly to Google without a separate server. It:
 
 - connects directly to Google's Smart Device Management API for reliable screen-off Nest readings;
 - alternatively reads through Google Home while the display is on and the phone is unlocked;
@@ -17,7 +17,7 @@ A deliberately small Android logger for Nest Device Access and Google Home APIs.
 - lets users select a specific compatible indoor device; and
 - shows returned climate-device types and traits to diagnose whether a thermostat exposes humidity.
 
-There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Users can select either Nest Device Access or Google Home as the indoor source; Device Access is the default whenever it is connected and no explicit choice has been saved. Nest Device Access works in the background while the display is off. Google Home readings are attempted only while the display is on and the phone is unlocked, although Home Climate Monitor itself does not need to remain open or visible.
+There is no foreground service, developer-operated cloud upload, analytics, or app-server dependency. Android may defer individual runs during Doze or other battery-saving modes, so 15 minutes is the requested interval rather than a wall-clock guarantee. Users can select either Nest Device Access or Google Home as the indoor source; Device Access is the default whenever it is connected and no explicit choice has been saved. Nest Device Access works in the background while the display is off. Google Home readings are attempted only while the display is on and the phone is unlocked, although NestClimateMonitor itself does not need to remain open or visible.
 
 Opening or returning to the app does not request a sample. Readings are requested only by the independent periodic worker or by **Settings → Refresh now**. A manual refresh does not replace, postpone, or suppress the next periodic worker run.
 
@@ -32,10 +32,12 @@ Device Access is the recommended indoor source because it supports screen-off ba
 1. Create a **Web application** OAuth client in [Google Auth Platform](https://console.cloud.google.com/auth/clients/) with `https://www.google.com` as an authorized redirect URI.
 2. [Enable the Smart Device Management API](https://console.cloud.google.com/apis/library/smartdevicemanagement.googleapis.com) in the same Google Cloud project that owns the OAuth client. If it was just enabled, allow a few minutes for the change to propagate.
 3. Register for [Nest Device Access](https://developers.google.com/nest/device-access/registration) and pay Google's one-time, non-refundable US$5 account fee. Create a Device Access project with Events disabled and associate the Web OAuth Client ID with it.
-4. For long-lived refresh tokens, move the Google Auth Platform audience from Testing to Production. Personal use does not require OAuth verification, but Google may show an unverified-app warning.
+4. Add your Google account as an OAuth test user if required. Google's Nest authorization can expire after about a week; use **3. Connect Nest** to renew it when necessary.
 5. In the app, open **Settings → Nest Device Access**, enter the Device Access Project ID, Web Client ID, and rotated Client Secret, then save.
 6. Tap **Open Google authorization** and grant access. Google intentionally finishes on `google.com`; tap Chrome's address bar to reveal and copy the complete `google.com/?code=...&state=...` URL, then return to the app. The app imports that one-time URL automatically; bare codes are rejected because they cannot be tied securely to the authorization request.
 7. Complete the connection and select a thermostat. The next manual or scheduled sample will use SDM.
+
+**Weekly permission renewal:** Google OAuth refresh tokens for Nest expire after about **7 days** when the OAuth app is in **Testing** mode, even if the app regularly samples. If readings stop because authorization expired, repeat **Settings → Nest Device Access → 3. Connect Nest** and tap **Complete connection** to regenerate the authorization. Keep your saved client credentials and Device Access project ID; they do not need to be regenerated. See [Google's authorization guidance](https://developers.google.com/nest/device-access/reference/errors/authorization).
 
 The client secret, access token, and refresh token are encrypted using Android Keystore, excluded from Android backup/device transfer, hidden from screenshots, and erased through the Device Access screen. They are still credentials held by a native client; this direct-phone design is intended for personal sideloaded use.
 
@@ -73,7 +75,7 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Enable instal
 
 All history remains on the phone unless the user explicitly shares a CSV. See [PRIVACY.md](PRIVACY.md).
 
-CSV exports include spreadsheet-safe display columns plus encoded companion columns used by Home Climate Monitor to restore text fields exactly. Older exports without the companion columns remain importable.
+CSV exports include spreadsheet-safe display columns plus encoded companion columns used by NestClimateMonitor to restore text fields exactly. Older exports without the companion columns remain importable.
 
 ## Publishing this repository
 
@@ -81,7 +83,7 @@ Do not commit the downloaded Home APIs SDK ZIP or its extracted Maven repository
 
 The Google Home Android OAuth client ID is associated with the application ID and signing-certificate SHA-1 in Google Cloud; it is not embedded in this project. Device Access project/client identifiers are entered at runtime, and its client secret and tokens must never be added to source, build configuration, screenshots, issues, or documentation.
 
-Local Beads issue records, agent settings, credential files, diagnostic logs, databases, CSV exports, and private history backups are ignored. Keep them on your machine; upload the Git repository contents rather than a ZIP of the entire working folder. The public commit history uses a generic contributor identity. See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the publication checks and GitHub upload steps.
+Local Beads issue records, agent settings, credential files, diagnostic logs, databases, CSV exports, and private history backups are ignored. Keep them on your machine; upload the Git repository contents rather than a ZIP of the entire working folder. The public commit history uses the author's chosen public identity. See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the publication checks and GitHub upload steps.
 
 Release signing and automation are documented in [docs/RELEASING.md](docs/RELEASING.md). Screenshot guidance is in [docs/screenshots/README.md](docs/screenshots/README.md). The project is available under the [MIT License](LICENSE), and user-facing changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
@@ -94,3 +96,7 @@ Background-worker timing and a repeatable Android battery-accounting procedure a
 ## What success looks like
 
 After Device Access authorization, a refresh should show the selected Nest thermostat's temperature and humidity and Sampling Health should identify `Nest Device Access (Google SDM)`. With Google Home selected, diagnostics should contain `RelativeHumidityMeasurement` with a humidity value.
+
+## License
+
+The original project source is licensed under the [MIT License](LICENSE), copyright Benjamin Kar. Third-party SDKs and weather data retain their own licenses and terms. NestClimateMonitor is an independent project and is not affiliated with or endorsed by Google or Nest.

@@ -2,6 +2,8 @@
 
 ## 0.3.0
 
+- Renamed the app to NestClimateMonitor and attributed the MIT license to Benjamin Kar.
+- Added weekly Nest authorization renewal guidance for Google OAuth apps in Testing mode.
 - Added direct Nest Device Access/SDM authorization and thermostat sampling.
 - Added Android Keystore-backed credential and token storage excluded from backup and screenshots.
 - Added selectable Nest Device Access and Google Home indoor sources, defaulting to Device Access when connected.

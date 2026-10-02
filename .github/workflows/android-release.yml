@@ -51,10 +51,10 @@ jobs:
         run: ./gradlew testDebugUnitTest lintDebug assembleRelease --console=plain
       - uses: actions/upload-artifact@v4
         with:
-          name: home-climate-monitor-release
+          name: nest-climate-monitor-release
           path: app/build/outputs/apk/release/app-release.apk
       - name: Publish tagged GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" app/build/outputs/apk/release/app-release.apk --generate-notes --title "Home Climate Monitor $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" app/build/outputs/apk/release/app-release.apk --generate-notes --title "NestClimateMonitor $GITHUB_REF_NAME"

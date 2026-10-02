@@ -21,14 +21,14 @@ git status --short
 
 The check examines tracked filenames against the ignore rules, common credential patterns, email addresses in text, commit messages, and commit author/committer metadata. It reports filenames and categories without printing matched values. It is a useful check, not a substitute for reviewing new files and images. Add project-specific private identifiers to your own local checks when introducing new integrations.
 
-Use a generic identity for public commits, or replace the repository-local identity with your GitHub-provided private `noreply` address if you want GitHub attribution. Commit metadata is public too. The current history uses `Home Climate Monitor contributors <contributors@example.invalid>`.
+The author has chosen `Benjamin Kar <benjkar@hotmail.com>` for public commit attribution. This is the only personal email explicitly allowed by the privacy checker; other personal addresses are still flagged. Commit metadata is public too. Contributors can use their GitHub-provided private `noreply` address.
 
 ## Upload
 
 Create an empty GitHub repository without an initial README, license, or `.gitignore`, then use the URL GitHub provides:
 
 ```powershell
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
+git remote add origin https://github.com/YOUR_USERNAME/NestClimateMonitor.git
 git push -u origin main
 ```
 

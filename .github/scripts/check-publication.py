@@ -17,6 +17,9 @@ PATTERNS = {
     "private Windows user path": rb"(?i)[A-Z]:[\\/]+Users[\\/]+[^\\/\s\"']+",
 }
 EMAIL = re.compile(rb"[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+# The project owner explicitly chose this identity for public Git attribution.
+PUBLIC_EMAILS = {b"benjkar@hotmail.com"}
+PUBLIC_NAMES = {"Benjamin Kar", "Home Climate Monitor contributors"}
 LOCAL_DIRS = {".beads", ".aws", ".ssh", ".codex", ".agents", ".private-backups", ".home-sdk-repo"}
 LOCAL_SUFFIXES = {".apk", ".aab", ".jks", ".keystore", ".pem", ".key", ".p12", ".pfx", ".bundle", ".db", ".sqlite", ".sqlite3", ".csv", ".log"}
 
@@ -25,7 +28,9 @@ def git(*args):
     return subprocess.check_output(GIT + list(args), cwd=ROOT)
 
 
-def public_email(domain):
+def public_email(domain, email=b""):
+    if email.lower() in PUBLIC_EMAILS:
+        return True
     value = domain.decode("ascii").lower()
     return value in {"example.com", "example.org", "example.net", "example.invalid"} or value.endswith(".example.invalid") or value == "users.noreply.github.com"
 
@@ -66,7 +71,7 @@ def check_content(label, content, findings):
     for category, pattern in PATTERNS.items():
         if re.search(pattern, content):
             findings.add((label, category))
-    if any(not public_email(match[1]) for match in EMAIL.finditer(content)):
+    if any(not public_email(match[1], match[0]) for match in EMAIL.finditer(content)):
         findings.add((label, "personal email address"))
 
 
@@ -101,9 +106,9 @@ def main():
             oid, author, author_email, committer, committer_email = row.split("\t")
             for name, email in [(author, author_email), (committer, committer_email)]:
                 domain = email.rpartition("@")[2].encode("ascii", errors="replace")
-                if not public_email(domain):
+                if not public_email(domain, email.encode("ascii", errors="replace")):
                     findings.add((f"commit {oid}", "personal commit email"))
-                if domain != b"users.noreply.github.com" and name != "Home Climate Monitor contributors":
+                if domain != b"users.noreply.github.com" and name not in PUBLIC_NAMES:
                     findings.add((f"commit {oid}", "review public contributor name"))
         messages = git("log", "--all", "--format=%h%x00%B%x00").split(b"\0")
         for index in range(0, len(messages) - 1, 2):
