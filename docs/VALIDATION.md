@@ -28,6 +28,10 @@ added helper regression tests and fixed CI setup/privacy handling without changi
   and the narrow Dependabot public-identity exception. Documentation coverage checked 32 production
   Kotlin files; publication scans covered tracked files and reachable history. YAML and local Markdown
   links were also checked.
+- Linux/JDK 17 SDK-free Android CI passed on source/helper commit `d762432`:
+  [Android quality gate](https://github.com/BenK22/NestClimateMonitor/actions/runs/37349879009).
+  Its matching [privacy/documentation/helper gate](https://github.com/BenK22/NestClimateMonitor/actions/runs/37349878619)
+  also passed. The later validation-record edits are documentation-only.
 
 ## Remaining human checks and known warnings
 
