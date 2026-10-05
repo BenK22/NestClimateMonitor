@@ -12,6 +12,12 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
 
+/**
+ * Cached-reading widget adapting to launcher dimensions: indoor tiles, outdoor tiles, then graph.
+ *
+ * Provider callbacks and sampling/settings changes re-render local history; no callback fetches
+ * weather or thermostat state. Current indoor freshness ignores metadata-only and outdoor rows.
+ */
 class ClimateWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) =
         ids.forEach { updateWidget(context, manager, it) }
@@ -23,6 +29,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
         ids.forEach { WidgetAppearance.remove(context, it) }
 
     companion object {
+        /** Re-renders every climate widget and graph-only widget from current local settings/data. */
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, ClimateWidgetProvider::class.java)
@@ -30,6 +37,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             GraphWidgetProvider.updateAll(context)
         }
 
+        /** Renders one widget from its launcher size and newest 400 stored rows, without sampling. */
         fun updateWidget(context: Context, manager: AppWidgetManager, id: Int) {
             val options = manager.getAppWidgetOptions(id)
             val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)

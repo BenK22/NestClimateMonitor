@@ -14,9 +14,22 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 
+/**
+ * Read-only Nest SDM client with user-supplied Web OAuth credentials stored on the phone.
+ *
+ * Suspending network entry points dispatch blocking HTTP to IO and use finite socket timeouts.
+ * Access tokens refresh with a one-minute safety margin; rejected/expired refresh grants require
+ * user reconnection. Responses are snapshots, not a Pub/Sub stream. Do not log OAuth URLs,
+ * request bodies or bearer tokens.
+ */
 class DeviceAccessClient(context: Context) {
     private val store = DeviceAccessStore(context.applicationContext)
 
+    /**
+     * Starts a new consent attempt, replacing the stored pending state, and returns its browser URL.
+     *
+     * @throws IllegalArgumentException if the required configuration has not been saved.
+     */
     fun authorizationUrl(): String {
         val config = store.configuration()
         require(store.isConfigured()) { "Save the Device Access credentials first." }
@@ -30,6 +43,16 @@ class DeviceAccessClient(context: Context) {
             "&state=${encode(state)}"
     }
 
+    /**
+     * Validates a full Google redirect URL, exchanges its code, saves tokens and discovers devices.
+     *
+     * Despite the legacy parameter name, bare codes are rejected: the URL must match pending
+     * OAuth state. State is consumed before the exchange, so a failed exchange needs new consent.
+     * Discovery does not persist climate readings or reset the sampling schedule.
+     *
+     * @throws IllegalArgumentException if the redirect host/path or OAuth state is invalid.
+     * @throws IOException if Google returns a non-success HTTP/token response.
+     */
     suspend fun link(authorizationCodeOrUrl: String): List<Reading> = withContext(Dispatchers.IO) {
         val expectedState = store.pendingOAuthState()
             ?: error("Authorization request expired. Open Google authorization again.")
@@ -48,6 +71,12 @@ class DeviceAccessClient(context: Context) {
         thermostats()
     }
 
+    /**
+     * Returns supported thermostat snapshots without saving them; refreshes the access token if needed.
+     *
+     * @throws IllegalArgumentException if no locally usable refresh token is present.
+     * @throws IOException if an OAuth or SDM HTTP request fails.
+     */
     suspend fun thermostats(): List<Reading> = withContext(Dispatchers.IO) {
         val config = store.configuration()
         require(store.isConnected()) { "Nest Device Access is not connected." }
@@ -72,6 +101,7 @@ class DeviceAccessClient(context: Context) {
                 "grant_type" to "refresh_token",
             )
         )
+        // Refresh responses need not include a replacement refresh token; retain the saved grant.
         saveTokenResponse(response, null)
         return store.accessToken()?.value ?: error("Google did not return an access token.")
     }
@@ -135,11 +165,13 @@ class DeviceAccessClient(context: Context) {
     }
 
     companion object {
+        /** Creates 256 bits of random, URL-safe state to bind the redirect to this consent attempt. */
         internal fun newOAuthState(): String {
             val bytes = ByteArray(32).also(SecureRandom()::nextBytes)
             return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
         }
 
+        /** Checks the HTTPS Google redirect host/path and code presence, but not request state. */
         internal fun isExpectedRedirectUrl(value: String): Boolean {
             val uri = runCatching { URI(value.trim()) }.getOrNull() ?: return false
             if (!uri.scheme.equals("https", ignoreCase = true)) return false
@@ -148,6 +180,7 @@ class DeviceAccessClient(context: Context) {
             return runCatching { extractAuthorizationCode(value) }.isSuccess
         }
 
+        /** Extracts a code only; never use this parser alone to authorize a connection. */
         internal fun extractAuthorizationCode(value: String): String {
             val trimmed = value.trim()
             require(trimmed.isNotBlank()) { "Paste the authorization code or redirected URL." }
@@ -163,6 +196,7 @@ class DeviceAccessClient(context: Context) {
                 ?: error("The pasted value does not contain an authorization code.")
         }
 
+        /** Validates redirect host/path and state before returning a nonblank decoded authorization code. */
         internal fun extractAuthorizationResponse(value: String, expectedState: String): String {
             require(expectedState.isNotBlank()) { "Authorization request expired. Open Google authorization again." }
             require(isExpectedRedirectUrl(value)) {
@@ -191,6 +225,7 @@ class DeviceAccessClient(context: Context) {
         private fun encodePath(value: String): String = encode(value).replace("+", "%20")
         private fun oauthError(json: JSONObject): String = json.optString("error_description")
             .takeIf { it.isNotBlank() } ?: json.optString("error", "OAuth token request failed.")
+        /** Reports HTTP status and a structured Google error instead of echoing the response body. */
         internal fun apiError(status: Int, body: String): String {
             val message = runCatching {
                 val json = JSONObject(body)
@@ -201,6 +236,7 @@ class DeviceAccessClient(context: Context) {
             return "Google request failed ($status)${message?.let { ": $it" }.orEmpty()}"
         }
 
+        /** Browser landing URI registered on the user's Web OAuth client; copied back manually. */
         const val REDIRECT_URI = "https://www.google.com"
         private const val SDM_SCOPE = "https://www.googleapis.com/auth/sdm.service"
         private const val TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"

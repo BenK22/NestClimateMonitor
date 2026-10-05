@@ -13,6 +13,13 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
+/**
+ * Raster chart renderer for RemoteViews, using a rolling six-hour window and separate dual axes.
+ *
+ * Only the selected indoor device and current outdoor label affect scales. Unlike the daily
+ * chart, widget humidity scales adapt to the data. Bitmap dimensions are density-aware but
+ * capped to bound memory/Binder payload. Rendering reads stored rows; it never fetches data.
+ */
 object WidgetGraph {
     private const val GRAPH_WINDOW_MS = 6L * 60L * 60L * 1000L
     private val INDOOR_TEMP = Color.rgb(255, 133, 112)
@@ -20,10 +27,18 @@ object WidgetGraph {
     private val OUTDOOR_TEMP = Color.rgb(255, 190, 92)
     private val OUTDOOR_HUMID = Color.rgb(116, 222, 211)
 
+    /** Shared presentation preference, defaulting to Fahrenheit without altering stored Celsius. */
     fun useFahrenheit(context: Context): Boolean =
         context.getSharedPreferences("display_preferences", Context.MODE_PRIVATE)
             .getBoolean("use_fahrenheit", true)
 
+    /**
+     * Renders supplied chronological history into a transparent ARGB bitmap.
+     *
+     * @param widthDp Available content width in dp, not raw bitmap pixels.
+     * @param heightDp Available content height in dp, excluding the host's padding/status rows.
+     * @return Density-scaled bitmap, capped at 1200 × 750 pixels; caller supplies the background.
+     */
     fun render(context: Context, all: List<Reading>, widthDp: Int, heightDp: Int): Bitmap {
         val density = context.resources.displayMetrics.density
         val width = (widthDp * density).roundToInt().coerceIn(1, 1200)
@@ -106,6 +121,7 @@ object WidgetGraph {
         canvas.drawText(nowLabel, right - textPaint.measureText(nowLabel), height - 3f, textPaint)
 
         fun draw(values: List<Reading>, selector: (Reading) -> Double?, color: Int, humidity: Boolean) {
+            // Widget paths omit null points; unlike the daily chart, they do not break on null rows.
             val points = values.mapNotNull { reading -> selector(reading)?.let { reading.timestampMs to it } }
             if (points.size < 2) return
             val path = Path()

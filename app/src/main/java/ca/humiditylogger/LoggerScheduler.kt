@@ -15,6 +15,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+/**
+ * Owns unique WorkManager schedules and persistent sampling-health information.
+ *
+ * Periodic and manual requests have independent names. KEEP preserves an existing periodic
+ * cadence and coalesces repeated manual clicks. Android may defer the requested 15-minute
+ * interval; this is not an exact alarm or a foreground service.
+ */
 object LoggerScheduler {
     private const val WORK_NAME = "nest_environment_sampling"
     private const val MANUAL_WORK_NAME = "nest_environment_manual_sample"
@@ -31,10 +38,12 @@ object LoggerScheduler {
     private const val KEY_TOTAL_DURATION_MS = "total_duration_ms"
     private const val KEY_ERROR_HISTORY = "error_history"
 
+    /** Ensures enabled periodic work exists; never requests an immediate sample on app launch. */
     fun start(context: Context) {
         if (!isEnabled(context)) return
 
         val workManager = WorkManager.getInstance(context)
+        // Remove the old catch-up job so upgrades cannot introduce implicit extra samples.
         workManager.cancelUniqueWork(LEGACY_CATCH_UP_WORK_NAME)
 
         val request = PeriodicWorkRequestBuilder<SamplingWorker>(SAMPLE_INTERVAL_MINUTES, TimeUnit.MINUTES)
@@ -61,6 +70,7 @@ object LoggerScheduler {
         }
     }
 
+    /** Cancels periodic work and persists the disabled choice; manual work remains independent. */
     fun stop(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
         prefs(context).edit()
@@ -70,6 +80,7 @@ object LoggerScheduler {
         ClimateWidgetProvider.updateAll(context.applicationContext)
     }
 
+    /** Persists the user choice before ensuring or cancelling the periodic schedule. */
     fun setEnabled(context: Context, enabled: Boolean) {
         if (enabled) {
             prefs(context).edit()
@@ -82,6 +93,7 @@ object LoggerScheduler {
         }
     }
 
+    /** Enqueues one network-constrained manual sample without changing the periodic interval. */
     fun refreshNow(context: Context) {
         enqueueOneTimeSample(context)
     }
@@ -100,35 +112,47 @@ object LoggerScheduler {
         )
     }
 
+    /** Observable WorkManager state for the periodic schedule, not a timer guarantee. */
     fun periodicWork(context: Context): LiveData<List<WorkInfo>> =
         WorkManager.getInstance(context).getWorkInfosForUniqueWorkLiveData(WORK_NAME)
 
+    /** Observable state for explicit refresh requests, separate from periodic work. */
     fun manualWork(context: Context): LiveData<List<WorkInfo>> =
         WorkManager.getInstance(context).getWorkInfosForUniqueWorkLiveData(MANUAL_WORK_NAME)
 
+    /** Saved logging choice; new installations default to enabled. */
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_ENABLED, true)
 
+    /** Last schedule/sample status, or null before any status was recorded. */
     fun status(context: Context): String? = prefs(context).getString(KEY_STATUS, null)
 
+    /** Last provider diagnostics for local display; may include device names and identifiers. */
     fun diagnostics(context: Context): String? = prefs(context).getString(KEY_DIAGNOSTICS, null)
 
+    /** Last successful indoor collection time in epoch milliseconds, across source selections. */
     fun lastSuccessMs(context: Context): Long? = prefs(context)
         .takeIf { it.contains(KEY_LAST_SUCCESS_MS) }
         ?.getLong(KEY_LAST_SUCCESS_MS, 0L)
 
+    /** Time the latest sample result was recorded, in epoch milliseconds. */
     fun lastAttemptMs(context: Context): Long? = prefs(context)
         .takeIf { it.contains(KEY_LAST_ATTEMPT_MS) }
         ?.getLong(KEY_LAST_ATTEMPT_MS, 0L)
 
+    /** Latest unsuccessful status; cleared by a subsequent indoor success. */
     fun lastError(context: Context): String? = prefs(context).getString(KEY_LAST_ERROR, null)
 
+    /** A bounded-history failure with epoch-millisecond time and sanitized status text. */
     data class SampleError(val timestampMs: Long, val message: String)
 
+    /** Returns up to 20 sanitized failures, oldest first; success does not erase history. */
     fun recentErrors(context: Context): List<SampleError> =
         decodeErrorHistory(prefs(context).getString(KEY_ERROR_HISTORY, null))
 
+    /** Completed run counts and elapsed milliseconds; these are not battery-energy measurements. */
     data class RuntimeStats(val runCount: Long, val lastDurationMs: Long, val totalDurationMs: Long)
 
+    /** Reads cumulative runtime counters used alongside external battery diagnostics. */
     fun runtimeStats(context: Context): RuntimeStats {
         val prefs = prefs(context)
         return RuntimeStats(
@@ -138,6 +162,7 @@ object LoggerScheduler {
         )
     }
 
+    /** Adds elapsed runtime for a started run, including failure or cancellation. */
     fun recordRun(context: Context, durationMs: Long) {
         val prefs = prefs(context)
         prefs.edit()
@@ -147,6 +172,13 @@ object LoggerScheduler {
             .apply()
     }
 
+    /**
+     * Stores the latest status and diagnostics, appending failures to bounded history.
+     *
+     * @param successfulAtMs Indoor success time in epoch milliseconds; null marks a failure.
+     * Outdoor-only success must not update the indoor freshness indicator. Callers must avoid
+     * secrets in status/diagnostics: only the bounded history applies additional redaction.
+     */
     fun recordResult(
         context: Context,
         status: String,
@@ -176,6 +208,7 @@ object LoggerScheduler {
         editor.apply()
     }
 
+    /** Appends a redacted, length-limited entry while keeping the newest 20 failures. */
     internal fun appendErrorHistory(
         serialized: String?,
         timestampMs: Long,
@@ -192,6 +225,7 @@ object LoggerScheduler {
         }.toString()
     }
 
+    /** Decodes oldest-first history; missing or malformed JSON yields an empty list. */
     internal fun decodeErrorHistory(serialized: String?): List<SampleError> = runCatching {
         val array = JSONArray(serialized ?: "[]")
         buildList {
@@ -204,6 +238,7 @@ object LoggerScheduler {
         }
     }.getOrDefault(emptyList())
 
+    /** Collapses whitespace and redacts recognized credential assignments; not a general scrubber. */
     internal fun sanitizeErrorMessage(message: String): String {
         val singleLine = message.trim().replace(Regex("\\s+"), " ")
         return SENSITIVE_VALUE.replace(singleLine) { match -> "${match.groupValues[1]}=[redacted]" }

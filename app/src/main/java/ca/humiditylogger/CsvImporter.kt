@@ -3,13 +3,25 @@ package ca.humiditylogger
 import java.io.Reader
 import java.util.Base64
 
+/** Bounded CSV validation and deduplication for current and older climate-history exports. */
 object CsvImporter {
+    /** Accepted new rows plus counts excluded by duplicate identity or validation failures. */
     data class Preview(
         val readings: List<Reading>,
         val duplicateCount: Int,
         val invalidCount: Int,
     )
 
+    /**
+     * Parses without writing storage, validates rows and removes existing/in-file duplicates.
+     *
+     * Encoded companion columns restore original text neutralized for spreadsheet safety.
+     * Identity is timestamp + device ID + source, not measurement values. Missing required
+     * headers produce an invalid-row preview; individual invalid rows do not reject good rows.
+     *
+     * @param nowMs Epoch milliseconds used for the five-minute future-time tolerance.
+     * @throws IllegalArgumentException if the character or row-count limit is exceeded.
+     */
     fun preview(
         csv: String,
         existing: List<Reading>,
@@ -64,9 +76,11 @@ object CsvImporter {
         return Preview(imported, duplicates, invalid)
     }
 
+    /** Import identity shared by existing and incoming rows; not a database uniqueness constraint. */
     internal fun key(reading: Reading): String =
         "${reading.timestampMs}\u0000${reading.deviceId.orEmpty()}\u0000${reading.source}"
 
+    /** Parses escaped quotes, embedded newlines and CRLF, subject to the row-count limit. */
     internal fun parseRows(csv: String): List<List<String>> {
         val rows = mutableListOf<List<String>>()
         var row = mutableListOf<String>()
@@ -98,6 +112,11 @@ object CsvImporter {
         return rows
     }
 
+    /**
+     * Reads at most [MAX_CSV_CHARS] characters before parsing; the caller owns closing [reader].
+     *
+     * @throws IllegalArgumentException if the character budget is exceeded (not a byte limit).
+     */
     fun readLimited(reader: Reader): String {
         val result = StringBuilder()
         val buffer = CharArray(8_192)
@@ -140,6 +159,7 @@ object CsvImporter {
 
     private fun Int?.orZero(): Int = this ?: 0
 
+    /** Maximum decoded character count, independent of the source file's byte encoding. */
     const val MAX_CSV_CHARS = 10_000_000
     private const val MAX_ROWS = 100_000
     private const val MAX_TEXT_LENGTH = 512

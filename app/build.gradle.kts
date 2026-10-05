@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Signing inputs are environment-only: never bundle developer credentials or keystores in Git.
 val releaseKeystorePath = providers.environmentVariable("RELEASE_KEYSTORE_PATH").orNull
 
 android {
@@ -30,6 +31,7 @@ android {
     }
 
     buildTypes {
+        // A separate package prevents instrumentation from replacing a tester's real installation.
         create("deviceTest") {
             initWith(getByName("debug"))
             applicationIdSuffix = ".devicetest"

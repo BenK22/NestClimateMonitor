@@ -19,3 +19,5 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Check source and commit history
         run: python3 .github/scripts/check-publication.py --history
+      - name: Check Kotlin documentation coverage
+        run: python3 .github/scripts/check-documentation.py

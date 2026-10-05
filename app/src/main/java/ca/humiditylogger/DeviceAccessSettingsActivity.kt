@@ -24,6 +24,13 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
+/**
+ * Separate save/consent/device-selection flow for user-owned Nest Device Access credentials.
+ *
+ * FLAG_SECURE blocks screenshots. Unsaved credential drafts survive configuration changes in
+ * memory only, not in saved-state Bundles. Discovery/testing changes selection but never inserts
+ * measurements or requests an immediate sample. External browser consent returns via copied URL.
+ */
 class DeviceAccessSettingsActivity : ComponentActivity() {
     private lateinit var store: DeviceAccessStore
     private lateinit var projectId: EditText
@@ -71,6 +78,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
     }
 
+    // Keep secrets across rotation in memory; do not serialize them into activity saved state.
     override fun onRetainCustomNonConfigurationInstance(): Any? =
         if (::projectId.isInitialized) {
             Draft(
@@ -215,6 +223,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         renderButtons()
     }
 
+    /** Exchanges only the state-bound URL through the client; UI work remains lifecycle-scoped. */
     private fun completeConnection() {
         if (!store.isConfigured()) {
             showError(IllegalStateException("Save the project ID and OAuth credentials first."))
@@ -269,6 +278,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 
+    /** Reads clipboard only after this screen launched consent; validates before populating the field. */
     private fun importAuthorizationFromClipboard() {
         val clipboard = getSystemService(ClipboardManager::class.java)
         val copied = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
@@ -299,6 +309,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         }
     }
 
+    /** Auto-selects one device; multiple devices require an explicit choice rather than mixed history. */
     private fun chooseThermostat(readings: List<Reading>) {
         if (readings.isEmpty()) {
             status.text = "Connected, but Google returned no supported Nest thermostats."

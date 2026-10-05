@@ -10,23 +10,39 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+/**
+ * Persists Device Access configuration and encrypts secret/token values with Android Keystore.
+ *
+ * Project/client identifiers, selection and pending state are ordinary private preferences.
+ * Secrets use AES-GCM with a fresh IV per encryption; the key is not stored in preferences.
+ * Backup/transfer exclusions are enforced separately by the manifest and XML rules. Local
+ * connectivity means a decryptable refresh token exists, not that Google still accepts it.
+ */
 class DeviceAccessStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** Saved non-secret identifiers and secret-presence flag; does not expose decrypted credentials. */
     data class Configuration(
         val projectId: String,
         val clientId: String,
         val hasClientSecret: Boolean,
     )
 
+    /** Decrypted bearer token and expiration in Unix epoch milliseconds; never log this object. */
     data class AccessToken(val value: String, val expiresAtMs: Long)
 
+    /** Returns saved identifiers; presence of ciphertext does not prove it can be decrypted. */
     fun configuration(): Configuration = Configuration(
         projectId = prefs.getString(KEY_PROJECT_ID, "").orEmpty(),
         clientId = prefs.getString(KEY_CLIENT_ID, "").orEmpty(),
         hasClientSecret = prefs.contains(KEY_CLIENT_SECRET),
     )
 
+    /**
+     * Saves combined configuration, clearing tokens/selection on identity or secret changes.
+     * A blank secret preserves the existing secret only if the project/client identity is unchanged.
+     * Prefer [saveProjectId] and [saveOAuthCredentials] for the separate UI setup steps.
+     */
     fun saveConfiguration(projectId: String, clientId: String, clientSecret: String?) {
         require(projectId.isNotBlank()) { "Device Access Project ID is required." }
         require(clientId.endsWith(".apps.googleusercontent.com")) { "Enter a valid OAuth Client ID." }
@@ -55,6 +71,7 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /** Saves a nonblank Device Access project ID; changes invalidate tokens, selection and state. */
     fun saveProjectId(projectId: String) {
         val normalized = projectId.trim()
         require(normalized.isNotBlank()) { "Device Access Project ID is required." }
@@ -67,6 +84,12 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /**
+     * Saves Web OAuth credentials and invalidates the connection when either changes.
+     * A blank secret keeps a previously saved one only for the same client ID.
+     *
+     * @throws IllegalArgumentException if the client ID or required secret is invalid/missing.
+     */
     fun saveOAuthCredentials(clientId: String, clientSecret: String?) {
         val normalized = clientId.trim()
         require(normalized.endsWith(".apps.googleusercontent.com")) {
@@ -89,8 +112,10 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /** Decrypts the required client secret; absence or an unavailable key is an error, not blank text. */
     fun clientSecret(): String = decryptRequired(KEY_CLIENT_SECRET, "OAuth Client Secret")
 
+    /** Encrypts tokens; a null/blank refresh token preserves the current refresh grant. */
     fun saveTokens(accessToken: String, expiresAtMs: Long, refreshToken: String? = null) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, encrypt(accessToken))
@@ -103,6 +128,7 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /** Replaces the pending consent nonce and records its creation time in epoch milliseconds. */
     fun savePendingOAuthState(state: String, createdAtMs: Long = System.currentTimeMillis()) {
         require(state.isNotBlank()) { "OAuth state cannot be blank." }
         prefs.edit()
@@ -111,6 +137,7 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /** Returns the nonce for up to ten minutes; expired state or clock rollback clears it. */
     fun pendingOAuthState(nowMs: Long = System.currentTimeMillis()): String? {
         val state = prefs.getString(KEY_PENDING_OAUTH_STATE, null)?.takeIf { it.isNotBlank() }
             ?: return null
@@ -122,6 +149,7 @@ class DeviceAccessStore(context: Context) {
         return state
     }
 
+    /** Consumes the local consent attempt without modifying saved tokens. */
     fun clearPendingOAuthState() {
         prefs.edit()
             .remove(KEY_PENDING_OAUTH_STATE)
@@ -129,6 +157,7 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /** Returns a decryptable token, possibly expired; null signals missing/unreadable ciphertext. */
     fun accessToken(): AccessToken? {
         val encrypted = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
         return runCatching {
@@ -136,25 +165,31 @@ class DeviceAccessStore(context: Context) {
         }.getOrNull()
     }
 
+    /** Returns the decryptable refresh grant, or null if storage/key access fails. */
     fun refreshToken(): String? = prefs.getString(KEY_REFRESH_TOKEN, null)?.let {
         runCatching { decrypt(it) }.getOrNull()
     }
 
+    /** Checks saved identifiers and secret presence, not validity against Google's services. */
     fun isConfigured(): Boolean {
         val config = configuration()
         return config.projectId.isNotBlank() && config.clientId.isNotBlank() && config.hasClientSecret
     }
 
+    /** Local grant presence only; Google can still reject a revoked or expired authorization. */
     fun isConnected(): Boolean = !refreshToken().isNullOrBlank()
 
+    /** Selected full SDM resource name, not its display name or trailing identifier alone. */
     fun selectedDeviceId(): String? = prefs.getString(KEY_DEVICE_ID, null)?.takeIf { it.isNotBlank() }
 
+    /** Saves the chosen resource name; null/blank clears selection without deleting history. */
     fun setSelectedDeviceId(deviceId: String?) {
         prefs.edit().apply {
             if (deviceId.isNullOrBlank()) remove(KEY_DEVICE_ID) else putString(KEY_DEVICE_ID, deviceId)
         }.apply()
     }
 
+    /** Erases local grants, selection and pending state, retaining setup credentials and history. */
     fun clearConnection() {
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
@@ -166,6 +201,7 @@ class DeviceAccessStore(context: Context) {
             .apply()
     }
 
+    /** Erases all Device Access preferences and attempts key deletion; leaves climate history intact. */
     fun clearAll() {
         prefs.edit().clear().apply()
         runCatching { keyStore().deleteEntry(KEY_ALIAS) }
@@ -189,6 +225,7 @@ class DeviceAccessStore(context: Context) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val ciphertext = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        // Persist IV + authenticated ciphertext; decrypt must use this exact byte layout.
         return Base64.encodeToString(cipher.iv + ciphertext, Base64.NO_WRAP)
     }
 

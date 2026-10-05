@@ -11,11 +11,20 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/**
+ * Collects the selected indoor source plus independent outdoor weather and updates local consumers.
+ *
+ * A process-wide mutex serializes manual/periodic runs without merging their requests. Expected
+ * provider failures are recorded and return WorkManager success so retries do not add samples
+ * between intervals. Cancellation is propagated. Google Home is skipped when locked/screen-off;
+ * Device Access does not use that gate. Neither source is an automatic fallback for the other.
+ */
 class SamplingWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
+    /** Runs one request, closes its database and records elapsed runtime even on cancellation. */
     override suspend fun doWork(): Result = sampleMutex.withLock {
         val force = inputData.getBoolean(KEY_FORCE, false)
         if (!shouldRun(LoggerScheduler.isEnabled(applicationContext), force)) return Result.success()
@@ -58,6 +67,7 @@ class SamplingWorker(
                     deviceAccessStore.setSelectedDeviceId(null)
                     selectedId = null
                 }
+                // Auto-select only an unambiguous device; never mix multiple homes' thermostats.
                 if (selectedId == null && available.size == 1) {
                     deviceAccessStore.setSelectedDeviceId(available.single().deviceId)
                     selectedId = available.single().deviceId
@@ -143,6 +153,7 @@ class SamplingWorker(
         }
     }
 
+    /** Saves weather independently; its success must not imply a successful indoor sample. */
     private suspend fun saveOutdoorReading(store: ReadingStore): String =
         runCatchingCancellable {
             store.insert(WeatherClient.fetchCurrent(applicationContext))
@@ -152,14 +163,18 @@ class SamplingWorker(
         }
 
     companion object {
+        /** Manual-request input that permits a sample even when periodic logging is disabled. */
         const val KEY_FORCE = "force_sample"
         private val sampleMutex = Mutex()
 
+        /** Keeps explicit refresh available without re-enabling periodic logging. */
         internal fun shouldRun(loggingEnabled: Boolean, force: Boolean): Boolean =
             loggingEnabled || force
 
+        /** Human-readable indoor result and whether an ambient measurement was returned. */
         internal data class ClimateOutcome(val status: String, val successful: Boolean)
 
+        /** Counts temperature or humidity as success; setpoint/status-only records do not qualify. */
         internal fun climateOutcome(
             readings: List<Reading>,
             selectionRequired: Boolean = false,

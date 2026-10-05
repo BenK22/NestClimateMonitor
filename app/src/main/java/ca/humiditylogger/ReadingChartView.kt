@@ -14,11 +14,19 @@ import java.util.Date
 import kotlin.math.abs
 import kotlin.math.max
 
+/**
+ * Interactive daily-history chart with temperature on the left and fixed 0–100% humidity on the right.
+ *
+ * The activity supplies chronological, already-selected history and local-day epoch boundaries.
+ * Indoor paths are solid and outdoor paths dashed. Missing values break daily paths; elapsed
+ * sampling gaps alone do not. Touch selects nearby stored rows, never triggers a refresh.
+ */
 class ReadingChartView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
+    /** Chronological selected history; replacement clears a selection whose timestamp disappeared. */
     var readings: List<Reading> = emptyList()
         set(value) {
             field = value
@@ -26,23 +34,27 @@ class ReadingChartView @JvmOverloads constructor(
             if (selectedTimestampMs == null) contentDescription = null
             invalidate()
         }
+    /** Local-day start in epoch milliseconds; changing the day clears the crosshair. */
     var dayStartMs: Long = 0L
         set(value) {
             if (field != value) clearSelection()
             field = value
             invalidate()
         }
+    /** Exclusive next local midnight; may differ from start by 23/25 hours across DST. */
     var dayEndMs: Long = 1L
         set(value) {
             if (field != value) clearSelection()
             field = value
             invalidate()
         }
+    /** Temperature label units only; readings/scaling continue to use Celsius internally. */
     var useFahrenheit: Boolean = true
         set(value) {
             field = value
             invalidate()
         }
+    /** Exact current outdoor label; other locations must be excluded by the caller. */
     var outdoorSource: String = ""
         set(value) {
             field = value
@@ -261,5 +273,6 @@ class ReadingChartView @JvmOverloads constructor(
     private fun celsiusToFahrenheit(celsius: Double): Double = celsius * 9.0 / 5.0 + 32.0
 }
 
+/** Keeps a crosshair only if its exact selected timestamp still exists after a history refresh. */
 internal fun retainChartSelection(selectedTimestampMs: Long?, readings: List<Reading>): Long? =
     selectedTimestampMs?.takeIf { selected -> readings.any { it.timestampMs == selected } }

@@ -18,6 +18,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
+/**
+ * Process-scoped, read-only Google Home SDK adapter for exposed climate traits.
+ *
+ * The worker checks screen/lock state and permission before sampling. SDK collections use
+ * per-flow timeouts plus a total deadline so an empty or stalled device flow cannot monopolize
+ * the sampling worker. Matter temperatures and humidity are normalized from hundredths.
+ */
 class HomeReader private constructor(context: Context) {
     private val registry = FactoryRegistry(
         types = listOf(
@@ -34,6 +41,7 @@ class HomeReader private constructor(context: Context) {
         ),
     )
 
+    /** Shared SDK client; activities must register their permission result caller before consent. */
     val client: HomeClient = Home.getClient(
         context.applicationContext,
         homeConfig = HomeConfig(
@@ -43,6 +51,7 @@ class HomeReader private constructor(context: Context) {
         ),
     )
 
+    /** Waits for initialized permission state for up to 15 seconds; timeout is an explicit error. */
     suspend fun permissionState(): PermissionsState = withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
         client.hasPermissions().first {
             it != PermissionsState.PERMISSIONS_STATE_UNINITIALIZED
@@ -51,6 +60,11 @@ class HomeReader private constructor(context: Context) {
         "Google Home permission check timed out. Keep the phone unlocked and try again."
     )
 
+    /**
+     * Discovers climate snapshots without persisting them or filtering the user's selection.
+     * Total timeout returns an empty result with diagnostics, not a partial success. Caller
+     * cancellation propagates; other SDK failures can throw and are handled by the worker.
+     */
     suspend fun sample(): SampleResult = withTimeoutOrNull(HOME_SAMPLE_DEADLINE_MS) {
         sampleWithinDeadline()
     } ?: SampleResult(
@@ -181,19 +195,24 @@ class HomeReader private constructor(context: Context) {
     private fun celsiusToFahrenheit(celsius: Double): Double = celsius * 9.0 / 5.0 + 32.0
 
     companion object {
+        /** Bound for each SDK synchronization flow, in milliseconds. */
         const val HOME_SYNC_TIMEOUT_MS = 30_000L
+        /** Bound for initialized permission state, in milliseconds. */
         const val PERMISSION_TIMEOUT_MS = 15_000L
+        /** Overall sample deadline, in milliseconds, covering all structures/devices. */
         const val HOME_SAMPLE_DEADLINE_MS = 45_000L
 
         @Volatile
         private var instance: HomeReader? = null
 
+        /** Lazily creates one SDK adapter using application context, avoiding an activity reference. */
         fun getInstance(context: Context): HomeReader = instance ?: synchronized(this) {
             instance ?: HomeReader(context.applicationContext).also { instance = it }
         }
     }
 }
 
+/** Unselected SDK snapshots and local diagnostics; diagnostics may contain private home/device names. */
 data class SampleResult(
     val readings: List<Reading>,
     val diagnostics: List<String>,

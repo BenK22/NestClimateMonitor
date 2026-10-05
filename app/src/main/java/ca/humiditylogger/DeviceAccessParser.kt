@@ -2,7 +2,14 @@ package ca.humiditylogger
 
 import org.json.JSONObject
 
+/** Converts SDM device-list JSON to provider-independent snapshots without Android or network state. */
 object DeviceAccessParser {
+    /**
+     * Returns only thermostat devices, retaining null for absent measurements and unsupported traits.
+     *
+     * @param timestampMs Collection time in epoch milliseconds assigned to every returned device.
+     * @throws org.json.JSONException if the input or a required JSON object is malformed.
+     */
     fun thermostats(json: String, timestampMs: Long = System.currentTimeMillis()): List<Reading> {
         val devices = JSONObject(json).optJSONArray("devices") ?: return emptyList()
         return buildList {

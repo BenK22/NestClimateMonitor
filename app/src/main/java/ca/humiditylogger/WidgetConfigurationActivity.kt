@@ -11,6 +11,12 @@ import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
 
+/**
+ * Launcher configuration flow for both widget providers.
+ *
+ * Starts cancelled and accepts only a valid widget ID; successful Add persists appearance,
+ * renders that provider and returns the ID to the launcher. Cancellation creates no settings.
+ */
 class WidgetConfigurationActivity : Activity() {
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 

@@ -12,6 +12,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
+/** Local sustained-humidity notifications for the selected indoor device, deduplicated by state. */
 object HumidityAlerts {
     private const val PREFS = "humidity_alerts"
     private const val CHANNEL_ID = "humidity_alerts"
@@ -19,6 +20,7 @@ object HumidityAlerts {
     private const val SAMPLE_INTERVAL_MS = 15L * 60L * 1000L
     private const val MAX_SAMPLE_GAP_MS = SAMPLE_INTERVAL_MS + 10L * 60L * 1000L
 
+    /** Inclusive low/high percent thresholds and required duration in minutes; disabled by default. */
     data class Settings(
         val enabled: Boolean,
         val low: Int,
@@ -26,6 +28,7 @@ object HumidityAlerts {
         val durationMinutes: Int,
     )
 
+    /** Reads saved thresholds, defaulting to 30–60% and 60 minutes. */
     fun settings(context: Context): Settings {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return Settings(
@@ -36,6 +39,7 @@ object HumidityAlerts {
         )
     }
 
+    /** Saves UI-validated settings; disabling clears the active state and existing notification. */
     fun save(context: Context, settings: Settings) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean("enabled", settings.enabled)
@@ -49,6 +53,11 @@ object HumidityAlerts {
         }
     }
 
+    /**
+     * Evaluates recent selected-device history and notifies only on a new sustained state.
+     * Notification permission is checked at delivery and a permission-race exception is tolerated.
+     * This consumes collected samples, not continuous measurements between samples.
+     */
     @SuppressLint("MissingPermission")
     fun evaluate(context: Context, store: ReadingStore) {
         val settings = settings(context)
@@ -93,10 +102,16 @@ object HumidityAlerts {
         prefs.edit().putString("active_state", state).apply()
     }
 
+    /** Checks the Android 13+ runtime grant; channel/global notification settings are separate. */
     fun canNotify(context: Context): Boolean =
         Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
+    /**
+     * Returns high/low only for a contiguous outside-threshold run ending at the latest row.
+     * A gap over 25 minutes or an in-range/missing value breaks continuity; zero duration permits
+     * an immediate alert. The caller supplies only the selected device's eligible humidity rows.
+     */
     internal fun determineState(readings: List<Reading>, settings: Settings): String {
         val ordered = readings.sortedBy(Reading::timestampMs)
         val latest = ordered.lastOrNull() ?: return "normal"

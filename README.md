@@ -71,6 +71,13 @@ The client secret, access token, and refresh token are encrypted using Android K
 
 The phone needs current Google Play services. Current Home APIs also expect a supported physical Google Home hub in the structure. Select Google Home under **Settings → Indoor data source** to use this method. Scheduled indoor reads are attempted only while the display is on and the phone is unlocked; the app does not need to be the visible foreground app. Select Nest Device Access instead for reliable screen-off and overnight logging.
 
+## Developer documentation
+
+See the [architecture and maintenance guide](docs/ARCHITECTURE.md) for source responsibilities,
+data contracts, authentication, scheduling and known limitations. [CONTRIBUTING.md](CONTRIBUTING.md)
+defines KDoc conventions and verification commands. Important APIs and non-obvious decisions are
+documented in the Kotlin sources for Android Studio navigation.
+
 ## Build
 
 The project requires JDK 17, Android SDK 36, and Android Studio/Gradle capable of Android Gradle Plugin 8.9.3. Open this folder in a current Android Studio, let it install missing SDK components, then run the `app` configuration on the phone.

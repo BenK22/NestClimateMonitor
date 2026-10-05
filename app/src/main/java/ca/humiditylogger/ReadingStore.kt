@@ -5,6 +5,15 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
+/**
+ * SQLite history repository with additive, non-destructive schema migrations.
+ *
+ * Queries return detached snapshots in chronological order. Calls are synchronous: bulk reads,
+ * imports and exports should run off the UI thread. The owner must close this helper (use [use]
+ * for short-lived consumers). Inserts do not deduplicate; CSV preview owns that policy.
+ *
+ * @param databaseName Local database filename; injectable for isolated instrumentation tests.
+ */
 class ReadingStore(context: Context, private val databaseName: String = "readings.db") :
     SQLiteOpenHelper(context, databaseName, null, DATABASE_VERSION) {
     private val appContext = context.applicationContext
@@ -45,6 +54,7 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         if (oldVersion < 3) db.execSQL("ALTER TABLE readings ADD COLUMN device_id TEXT")
     }
 
+    /** Appends one snapshot, preserving null traits; throws if SQLite cannot insert the row. */
     fun insert(reading: Reading) {
         val values = ContentValues().apply {
             put("timestamp_ms", reading.timestampMs)
@@ -66,6 +76,7 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         writableDatabase.insertOrThrow("readings", null, values)
     }
 
+    /** Returns the newest [limit] rows, reordered oldest first for charts and last-item selection. */
     fun recent(limit: Int = 720): List<Reading> {
         return queryReadings(
             selection = null,
@@ -75,6 +86,7 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         ).asReversed()
     }
 
+    /** Returns all rows oldest first; may allocate substantial memory with unlimited retention. */
     fun all(): List<Reading> = queryReadings(
         selection = null,
         selectionArgs = null,
@@ -82,6 +94,7 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         limit = null,
     )
 
+    /** Returns chronological rows in `startMs <= timestamp < endExclusiveMs` (epoch milliseconds). */
     fun between(startMs: Long, endExclusiveMs: Long): List<Reading> = queryReadings(
         selection = "timestamp_ms >= ? AND timestamp_ms < ?",
         selectionArgs = arrayOf(startMs.toString(), endExclusiveMs.toString()),
@@ -130,10 +143,12 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         return result
     }
 
+    /** Permanently deletes climate history only; caller must obtain user confirmation first. */
     fun clear() {
         writableDatabase.delete("readings", null, null)
     }
 
+    /** Inserts the batch atomically; any failed insert rolls back every row in the batch. */
     fun insertAll(readings: List<Reading>) = writableDatabase.inTransaction {
         readings.forEach(::insert)
     }
@@ -148,13 +163,16 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         }
     }
 
+    /** Number of stored snapshots across all indoor devices and outdoor locations. */
     fun count(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM readings", null).use { cursor ->
         cursor.moveToFirst()
         cursor.getLong(0)
     }
 
+    /** Main database file size only; excludes journals and is not total app storage usage. */
     fun databaseSizeBytes(): Long = appContext.getDatabasePath(databaseName).length()
 
+    /** Deletes rows strictly older than [timestampMs] and returns the deleted count. */
     fun deleteBefore(timestampMs: Long): Int = writableDatabase.delete(
         "readings",
         "timestamp_ms < ?",

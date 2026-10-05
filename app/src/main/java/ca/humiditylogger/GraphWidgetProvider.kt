@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Bundle
 import android.widget.RemoteViews
 
+/** Resizable graph-only RemoteViews host; uses the same local history/filter/renderer as climate tiles. */
 class GraphWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) =
         ids.forEach { updateWidget(context, manager, it) }
@@ -18,12 +19,14 @@ class GraphWidgetProvider : AppWidgetProvider() {
         ids.forEach { WidgetAppearance.remove(context, it) }
 
     companion object {
+        /** Re-renders all graph-only instances; does not enqueue network or sampling work. */
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, GraphWidgetProvider::class.java)
             manager.getAppWidgetIds(component).forEach { updateWidget(context, manager, it) }
         }
 
+        /** Fits a six-hour bitmap into one launcher's widget bounds with per-instance appearance. */
         fun updateWidget(context: Context, manager: AppWidgetManager, id: Int) {
             val options = manager.getAppWidgetOptions(id)
             val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)

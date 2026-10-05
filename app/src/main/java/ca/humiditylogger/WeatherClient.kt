@@ -6,11 +6,19 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** Fetches outdoor weather-model values directly from Open-Meteo using saved coordinates only. */
 object WeatherClient {
+    /** Persisted discriminator for outdoor rows; changing it would require history compatibility. */
     const val SOURCE_PREFIX = "Outdoor · "
 
+    /** Recognizes historical outdoor labels, independent of the currently selected location. */
     fun isOutdoor(source: String): Boolean = source.startsWith(SOURCE_PREFIX)
 
+    /**
+     * Reads current 2 m temperature (Celsius) and relative humidity (percent) on IO.
+     * Timestamp is collection time, not the weather model's observation time. Missing values
+     * remain null; network/HTTP/JSON failures propagate to the worker's independent weather path.
+     */
     suspend fun fetchCurrent(context: android.content.Context): Reading = withContext(Dispatchers.IO) {
         val location = WeatherLocationStore.get(context)
         val endpoint = "https://api.open-meteo.com/v1/forecast" +

@@ -48,6 +48,13 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Dashboard, daily history and user-driven settings/CSV flows built with Android Views.
+ *
+ * Owns its [ReadingStore] until destruction and observes WorkManager for stored-data changes.
+ * Opening/resuming renders history and ensures the unique schedule; it must not collect a sample.
+ * Explicit Refresh is delegated to [LoggerScheduler.refreshNow]. Landscape emphasizes the chart.
+ */
 class MainActivity : ComponentActivity() {
     private val importCsv = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(::previewCsvImport)
@@ -156,6 +163,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Checks the chosen provider and ensures enabled periodic work without resetting its cadence. */
     private suspend fun updatePermissionAndSchedule() {
         val source = IndoorSourcePreference.selected(this)
         if (source == IndoorSource.DEVICE_ACCESS) {
@@ -193,6 +201,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Renders cached selected-device/location data; deliberately contains no network collection. */
     private fun refreshUiFromStorage() {
         val recentReadings = store.recent()
         val weatherLocation = WeatherLocationStore.get(this)
@@ -332,6 +341,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Computes selected-day summaries from available values; missing measurements are excluded. */
     private fun updateDailySummaries(readings: List<Reading>) {
         val indoor = readings.filterNot { WeatherClient.isOutdoor(it.source) }
         val outdoor = readings.filter { WeatherClient.isOutdoor(it.source) }
@@ -362,6 +372,7 @@ class MainActivity : ComponentActivity() {
     ) {
         views.minimum.text = values.minOrNull()?.let(formatter) ?: "—"
         views.maximum.text = values.maxOrNull()?.let(formatter) ?: "—"
+        // This is a sample mean, not time-weighted: manual samples have the same weight as periodic ones.
         views.average.text = values.takeIf { it.isNotEmpty() }?.average()?.let(formatter) ?: "—"
     }
 
@@ -942,6 +953,7 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /** Reads/validates CSV on IO, then requires confirmation before a transactional import. */
     private fun previewCsvImport(uri: Uri) {
         lifecycleScope.launch {
             val preview = withContext(Dispatchers.IO) {
@@ -1304,6 +1316,7 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /** Shows scheduler eligibility and local diagnostics, not exact execution/battery predictions. */
     private fun showSamplingHealthDialog() {
         val stats = LoggerScheduler.runtimeStats(this)
         val lastAttempt = LoggerScheduler.lastAttemptMs(this)?.let {
@@ -1989,5 +2002,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Restores an ISO date or defaults to today if missing/malformed; does not clamp valid dates. */
 internal fun restoreSelectedHistoryDay(saved: String?, today: LocalDate): LocalDate =
     runCatching { saved?.let(LocalDate::parse) }.getOrNull() ?: today
