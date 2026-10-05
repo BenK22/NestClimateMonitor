@@ -7,6 +7,8 @@
 - Pinned workflow actions, Gradle distribution and the reviewed Google Home SDK archive.
 - Hardened SDK installation and official APK validation; separated signing from release publishing.
 - Added security/support policies, issue templates, troubleshooting and a release checklist.
+- Disabled unused Google Play encrypted SDK metadata in GitHub APKs while retaining the
+  dependency report and generated open-source notices; avoids the build-tool Tink warning.
 
 ## 0.3.0
 

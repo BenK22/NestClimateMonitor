@@ -2,7 +2,13 @@
 
 ## Local signed releases
 
-The first release is built and signed locally, then uploaded as a GitHub prerelease together with its `.apk.sha256` checksum. Release APKs use a permanent private signing key; the keystore and its password configuration remain in ignored local storage and must be backed up securely outside the checkout. Never regenerate the signing key for an update.
+The first release is built and signed locally, then uploaded as a GitHub prerelease together with its `.apk.sha256` checksum. Release APKs use a permanent private signing key; the keystore and its password configuration remain in ignored local storage. Never regenerate the signing key for an update.
+
+The maintainer chose local-only storage in `.private-backups/release-signing` on 2026-10-05.
+No off-machine backup was made. Git ignore rules prevent publication; they do not provide backup
+or encryption. Losing this folder or machine would prevent signing compatible updates to the
+installed app. An encrypted off-machine backup with separately stored passwords is recommended,
+but is not represented as completed or required by the current maintainer's policy.
 
 Set `RELEASE_KEYSTORE_PATH`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and `RELEASE_KEY_PASSWORD` in the build environment, then run:
 
@@ -25,6 +31,16 @@ downloaded Google Home SDK or private signing inputs. Forks must establish their
 signing policy and certificate validation; do not reuse the official release name/certificate claim.
 
 Debug and release certificates differ. Existing debug users must export their readings before uninstalling that build, installing the release, restoring CSV history, and reconnecting Google; this process must never be performed automatically on a tester's phone.
+
+### APK dependency metadata and licenses
+
+GitHub-distributed APKs set `dependenciesInfo.includeInApk = false`: Google's encrypted
+Play-specific SDK inventory is not embedded in the APK signing block. Bundle metadata remains
+enabled so AGP still provides the dependency report consumed by the OSS licenses plugin.
+Release APKs must still contain real generated open-source notices, checked by the packaging
+helper. This is a supported [Android build setting](https://developer.android.com/reference/tools/gradle-api/8.9/com/android/build/api/dsl/DependenciesInfo),
+not a warning filter, a Tink dependency override or removal of app encryption. If introducing
+Play Store distribution, review this setting and validate bundle builds separately.
 
 ## Optional GitHub Actions automation
 
@@ -74,6 +90,7 @@ Manual signed workflow runs are restricted to `main` (or a matching tag), requir
 produce verified Actions artifacts without publishing when run on `main`. PR checks are a separate
 SDK-free, secret-free workflow, not proof of full Google Home integration.
 
-Complete [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including off-machine key recovery and
-independent-account onboarding, before making release-readiness claims. Current source changes
+Complete [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including confirmation of the chosen key
+storage policy and independent-account onboarding, before making release-readiness claims.
+Current source changes
 under **Unreleased** do not alter the already published v0.3.0 APK.

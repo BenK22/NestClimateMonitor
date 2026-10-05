@@ -12,8 +12,10 @@ See [VALIDATION.md](VALIDATION.md) for the last recorded checks and remaining va
 - [ ] Inspect generated licenses and the offline in-app screen; review updated SDK/data terms.
 - [ ] Increment versionCode/versionName for a new APK, update CHANGELOG and add
       `docs/releases/v<version>.md`. Never replace an existing release's APK with different bytes.
-- [ ] Confirm an encrypted off-machine backup of the permanent signing key and recoverable,
-      separately stored passwords. Test recovery without exposing the key.
+- [ ] Confirm the permanent key/password configuration is excluded from Git and still available.
+      Record the maintainer's storage policy: currently ignored local-only storage, with the
+      accepted risk of losing compatible update signing if that storage is lost. If adopting an
+      encrypted off-machine backup, store passwords separately and test recovery privately.
 - [ ] Build/sign using that key; run `package-release.py` to verify signer, package, version,
       non-debuggable state and license resources. Tag the exact reviewed build commit.
 - [ ] Publish APK and `.apk.sha256` with honest prerelease notes and known limitations.
@@ -30,5 +32,5 @@ See [VALIDATION.md](VALIDATION.md) for the last recorded checks and remaining va
 - [ ] Exercise the isolated `deviceTest` suite; never overwrite a user's installed package.
 - [ ] Confirm privacy-reviewed screenshots, troubleshooting/support links and license attribution.
 
-The maintainer must confirm account/backup tests; they cannot be inferred from automated builds.
+The maintainer must confirm account tests and key storage policy; CI cannot infer either.
 See [releasing](RELEASING.md), [security](../SECURITY.md) and [troubleshooting](TROUBLESHOOTING.md).

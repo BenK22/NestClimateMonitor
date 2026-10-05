@@ -22,7 +22,9 @@ See [PRIVACY.md](PRIVACY.md) and the [architecture guide](docs/ARCHITECTURE.md).
 
 If a credential leaks, revoke or rotate it through Google and reconnect. Removing it from the
 latest Git revision does not remove it from history or invalidate it. A lost release signing key
-cannot be recovered from an APK: keep an encrypted off-machine backup, separate from its passwords.
+cannot be recovered from an APK. An encrypted off-machine backup, separate from its passwords,
+is recommended. The maintainer's current local-only storage choice and accepted loss risk are
+documented in [releasing](docs/RELEASING.md).
 
 Fork pull-request checks have read-only permissions and no SDK/signing secrets. Only trusted
 release builds receive private inputs; a separate publishing job receives repository write access.

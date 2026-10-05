@@ -181,6 +181,14 @@ class NoticeTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_apk_metadata_opt_out_keeps_license_inventory_enabled(self):
+        text = (ROOT / "app/build.gradle.kts").read_text()
+        block = re.search(r"dependenciesInfo\s*\{([^}]+)\}", text)
+        self.assertIsNotNone(block)
+        self.assertRegex(block[1], r"includeInApk\s*=\s*false")
+        self.assertRegex(block[1], r"includeInBundle\s*=\s*true")
+        self.assertIn('id("com.google.android.gms.oss-licenses-plugin")', text)
+
     def test_workflows_use_sdk_helper_not_path_assumption(self):
         for name in ("android-check.yml", "android-release.yml"):
             text = (ROOT / ".github/workflows" / name).read_text()

@@ -1,8 +1,9 @@
 # Release-readiness validation record
 
 This records checks performed on 2026-10-05, not a guarantee about every device or future version.
-App-source/build-input changes were tested from committed source `df88e09`; subsequent changes
+Initial app-source/build-input checks used committed source `df88e09`; subsequent changes
 added helper regression tests and fixed CI setup/privacy handling without changing app behavior.
+The later APK metadata opt-out was checked separately as recorded below.
 
 ## Local checks completed
 
@@ -33,19 +34,42 @@ added helper regression tests and fixed CI setup/privacy handling without changi
   Its matching [privacy/documentation/helper gate](https://github.com/BenK22/NestClimateMonitor/actions/runs/37349878619)
   also passed. The later validation-record edits are documentation-only.
 
+## Follow-up APK packaging checks (2026-10-05)
+
+- After disabling Play-only APK dependency metadata, the full-SDK build again passed 53 JVM
+  tests, debug/release lint and debug/release assembly. The signed test APK passed the permanent
+  signer, package/version, non-debuggable and license-resource checks. No APK was published or
+  installed, and the published v0.3.0 assets were not replaced.
+- SDK-free contributor mode also passed `testDebugUnitTest lintDebug assembleDebug` with the
+  new metadata setting, including 53 JVM tests and no lint errors.
+- All 26 helper regression tests passed, including the new guard that APK metadata is disabled
+  while bundle dependency inventory and the OSS plugin remain enabled. Documentation, tracked-file
+  privacy and reachable-history checks passed. Other deprecation warnings remain.
+
 ## Remaining human checks and known warnings
 
-- Separate-account onboarding, weekly grant renewal and an encrypted recoverable off-machine
-  signing-key backup still require maintainer confirmation. They are not marked complete by CI.
+- Separate-account onboarding and weekly grant renewal still require maintainer confirmation.
+  The maintainer explicitly left the separate-account test open on 2026-10-05.
+- The existing permanent signing key and password configuration were verified present in ignored
+  `.private-backups/release-signing`, with neither file tracked. The maintainer chose local-only
+  storage on 2026-10-05; no off-machine backup or recovery test was performed. Losing this local
+  storage would prevent signing compatible updates. Git ignore rules are not encryption or backup.
 - Actual offline license-screen navigation, all supported thermostat models, every launcher and
   exact overnight sampling behavior were not established by these tests. Use the
   [release checklist](RELEASE_CHECKLIST.md) and [troubleshooting](TROUBLESHOOTING.md).
 - Existing Android/Kotlin deprecation/lint warnings remain. Builds are not claimed warning-free.
-- AGP 8.9.3's release dependency-metadata task reports old Tink protobuf-generated code. Its POM
-  depends on Tink 1.7.0; that external dependency is absent from the app runtime inventory, and the
-  inspected APK has no unshaded `com.google.crypto.tink.proto` descriptors. A supported build-tool
-  upgrade needs review; warnings were not suppressed and this is not a blanket vulnerability audit.
-  See the [upstream protobuf advisory](https://github.com/protocolbuffers/protobuf/security/advisories/GHSA-h4h5-3hr4-j3g2).
+- The original APK build invoked AGP 8.9.3's `sdkReleaseDependencyData` task, which reported old
+  Tink protobuf-generated code. The GitHub APK build now uses the supported `includeInApk = false`
+  setting, removing that encryption task from the APK task graph without filtering diagnostics.
+  `includeInBundle = true` retains the dependency report used for OSS notices. A forced regeneration
+  preserved the license text/index byte-for-byte against the prior full-SDK checkout (149 entries,
+  265,264 bytes). See [the build setting and distribution scope](RELEASING.md#apk-dependency-metadata-and-licenses).
+- This does **not** patch upstream Tink. Published Google Maven POMs reviewed for AGP 8.9.3,
+  8.10.1, 8.13.2, 9.0.0 and 9.4.1 all use Tink 1.7.0. It is absent from the external app runtime
+  inventory, and the previously inspected APK has no unshaded `com.google.crypto.tink.proto`
+  descriptors. Bundle/Play distribution needs separate review; no bundle validation or blanket
+  vulnerability audit is claimed. See the
+  [upstream protobuf advisory](https://github.com/protocolbuffers/protobuf/security/advisories/GHSA-h4h5-3hr4-j3g2).
 
 GitHub workflows are the authoritative record of each pushed revision's CI outcome. Passing
 SDK-free CI does not validate the real Home SDK or a user's Google account setup. Signing/publishing
