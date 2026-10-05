@@ -8,7 +8,7 @@ Download the signed APK and checksum from [Releases](https://github.com/BenK22/N
 See [troubleshooting and compatibility](docs/TROUBLESHOOTING.md), [privacy](PRIVACY.md) and
 [security reporting](SECURITY.md). Official APK updates use a permanent signing certificate.
 
-An Android app for tracking Nest thermostat temperature and humidity alongside local outdoor weather, with on-device history, charts, and home-screen widgets. It connects directly to Google without a separate server. It:
+Features include:
 
 - connects directly to Google's Smart Device Management API for reliable screen-off Nest readings;
 - alternatively reads through Google Home while the display is on and the phone is unlocked;

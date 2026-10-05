@@ -1,6 +1,7 @@
 # Release checklist
 
 Run this for each new release. Unchecked items are not implied by a passing CI build.
+See [VALIDATION.md](VALIDATION.md) for the last recorded checks and remaining validation gaps.
 
 ## Source and distribution
 
