@@ -1,0 +1,4 @@
+# Shell entry points must remain executable text on Linux CI and Windows Git Bash.
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf

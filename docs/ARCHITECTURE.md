@@ -7,7 +7,13 @@ WorkManager; persistence uses SQLiteOpenHelper and private SharedPreferences.
 
 ## Start here
 
-All production Kotlin sources are under `app/src/main/java/ca/humiditylogger/`.
+Shared production Kotlin sources are under `app/src/main/java/ca/humiditylogger/`.
+The real `HomeReader` SDK adapter is under `app/src/googleHome/java/ca/humiditylogger/`;
+the SDK-free verification adapter is under `app/src/noGoogleHome/java/ca/humiditylogger/`.
+Gradle includes exactly one, with the real adapter as default. `HomeAccess` defines app-owned
+permission/result contracts, so SDK types do not leak into shared UI/worker code. The verification
+adapter reports `UNAVAILABLE`; it never simulates permission or climate readings. This path has
+a separate application ID and cannot be signed as an official release.
 
 | Concern | Entry points | Responsibility |
 | --- | --- | --- |
@@ -173,6 +179,17 @@ JVM tests cover parser/selection/CSV, scheduling policies, cancellation, alert c
 retention, chart state and widget sizing/freshness. Instrumentation tests cover SQLite transactions
 and Android Keystore storage using the isolated `deviceTest` application ID, not the user's app.
 No test establishes exact overnight timing on every Android device.
+
+PR CI compiles/tests/lints SDK-free mode with read-only permissions and no private inputs. The
+trusted release workflow verifies the SDK archive, runs full-SDK tests/lint before restoring
+the key, checks the signed APK and generated notices, then hands only assets to a separate
+publishing job. External actions use full commit pins. Python regression tests cover archive
+validation, redirects, notice checks and workflow safeguards. See the [release checklist](RELEASE_CHECKLIST.md)
+for human validation that these checks cannot establish.
+
+Settings launches Google's v2 OSS license menu. The Gradle plugin generates release notices
+from dependency metadata and bundled SDK notices; AGP debug variants supply only a placeholder.
+Release validation rejects that placeholder. See [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 The Google Home SDK is a signed-in download in ignored `.home-sdk-repo`; release signing inputs
 are environment-only and stay outside public Git. See [releasing](RELEASING.md) and

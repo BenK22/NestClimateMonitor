@@ -10,7 +10,19 @@ Set `RELEASE_KEYSTORE_PATH`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and 
 .\gradlew.bat testDebugUnitTest lintRelease assembleRelease --console=plain
 ```
 
-Verify `app/build/outputs/apk/release/app-release.apk` with Android's `apksigner verify --verbose --print-certs`, record its SHA-256 checksum, and upload the verified APK and checksum to the release. Tag the exact reviewed source commit used for the build. Source archives do not include the downloaded Google Home SDK or private signing inputs.
+Set `ANDROID_HOME` to the installed Android SDK, then run:
+
+```powershell
+python -B .github/scripts/package-release.py
+```
+
+The helper verifies the permanent official signing certificate, package, versionName/versionCode,
+non-debuggable state and actual generated license resources (not the debug placeholder). It creates
+`app/build/release-assets/NestClimateMonitor-v<version>.apk` and its `.apk.sha256` companion. Upload
+those verified assets together; do not rename them inconsistently between local and automated builds.
+Tag the exact reviewed source commit used for the build. Source archives do not include the
+downloaded Google Home SDK or private signing inputs. Forks must establish their own identity,
+signing policy and certificate validation; do not reuse the official release name/certificate claim.
 
 Debug and release certificates differ. Existing debug users must export their readings before uninstalling that build, installing the release, restoring CSV history, and reconnecting Google; this process must never be performed automatically on a tester's phone.
 
@@ -34,6 +46,13 @@ Google distributes the Home APIs Android SDK as a signed-in download, so it must
 
 Keep the same release key permanently. The Android OAuth client must contain the SHA-1 fingerprint of that release certificate.
 
+The SDK installer requires HTTPS, limits archive size, drops bearer authorization on cross-host
+redirects and rejects unsafe archive paths. It verifies `gradle/home-sdk.sha256` before extracting
+into `.home-sdk-repo`. This hash is the exact locally reviewed SDK 1.10.1 archive, not an independent
+vendor signature. Review a new SDK's provenance and terms before changing the hash or Maven versions.
+The Gradle distribution checksum and external action commit pins are also reviewed build inputs.
+Do not publish the downloaded archive or configure signing/download secrets for pull-request jobs.
+
 Before tagging, run the same local quality gates used during development:
 
 ```powershell
@@ -42,4 +61,19 @@ Before tagging, run the same local quality gates used during development:
 
 The connected-device tests use the isolated `androidTestDeviceTest` package and do not overwrite the installed app's readings or credentials. They require an attached unlocked Android device; GitHub's release job runs the unit tests and lint gate without a device.
 
-Update `versionCode`, `versionName`, and `CHANGELOG.md`, then push a tag matching the Android version exactly, such as `v0.3.0` for `versionName = "0.3.0"`. Tag builds are skipped when automatic signing has not been configured, allowing a locally signed release to be published without uploading private signing inputs. When configured, the workflow validates every signing secret and the tag/version agreement before downloading private inputs. It must then pass unit tests and Android lint before it builds the signed APK and creates the GitHub release. A manual workflow run still requires all signing inputs, runs the same validation and gates, and builds the APK as a downloadable Actions artifact without creating a release.
+Update `versionCode`, `versionName`, and `CHANGELOG.md`, add `docs/releases/v<version>.md`, then push
+a tag matching the Android version exactly. Do not retag/rebuild an existing published version or
+replace its assets. Tag builds are skipped when automatic signing is unconfigured, so local signing
+remains possible without putting private inputs in GitHub. When configured, validation requires
+every signing input, matching version tag and release notes. Full-SDK tests and release lint run
+before the key is restored. The signed APK must pass `package-release.py` before artifact upload.
+
+A separate publish job has `contents: write` but no SDK/signing secrets; build jobs have only
+read access. It rechecks artifact hashes and publishes a **prerelease** using the checked-in notes.
+Manual signed workflow runs are restricted to `main` (or a matching tag), require all inputs and
+produce verified Actions artifacts without publishing when run on `main`. PR checks are a separate
+SDK-free, secret-free workflow, not proof of full Google Home integration.
+
+Complete [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including off-machine key recovery and
+independent-account onboarding, before making release-readiness claims. Current source changes
+under **Unreleased** do not alter the already published v0.3.0 APK.

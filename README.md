@@ -1,5 +1,13 @@
 # Nest Climate Monitor
 
+An independent, read-only Android app for Nest temperature/humidity history, outdoor comparison,
+alerts and home-screen widgets. No middleman server; credentials and history stay on your phone.
+This is an experimental personal-use project, not an official Google/Nest product.
+
+Download the signed APK and checksum from [Releases](https://github.com/BenK22/NestClimateMonitor/releases).
+See [troubleshooting and compatibility](docs/TROUBLESHOOTING.md), [privacy](PRIVACY.md) and
+[security reporting](SECURITY.md). Official APK updates use a permanent signing certificate.
+
 An Android app for tracking Nest thermostat temperature and humidity alongside local outdoor weather, with on-device history, charts, and home-screen widgets. It connects directly to Google without a separate server. It:
 
 - connects directly to Google's Smart Device Management API for reliable screen-off Nest readings;
@@ -63,7 +71,7 @@ The client secret, access token, and refresh token are encrypted using Android K
 
 ## Google Home setup
 
-1. Sign in at the [Home APIs SDK setup page](https://developers.home.google.com/apis/android/sdk) and download the current Android SDK ZIP. This checkout uses SDK 1.10.1 extracted into `.home-sdk-repo`; the required Maven artifacts are `play-services-home` and `play-services-home-types` version `17.1.0`.
+1. Developers building from source: sign in at the [Home APIs SDK setup page](https://developers.home.google.com/apis/android/sdk) and download SDK 1.10.1. Install it with the checksum-verifying command below. The required Maven artifacts are `play-services-home` and `play-services-home-types` version `17.1.0`. APK users do not need a separate SDK download.
 2. Create a Google Cloud project and configure its OAuth consent screen.
 3. Add the Google account that owns/administers the Google Home as an OAuth test user.
 4. Create an **Android** OAuth client for package `ca.humiditylogger` using the SHA-1 of the key used to sign the app.
@@ -84,6 +92,17 @@ The project requires JDK 17, Android SDK 36, and Android Studio/Gradle capable o
 
 Install Android SDK Platform 36 and the build tools required by Gradle. Keep your SDK path in the ignored `local.properties` file, or let Android Studio create it. The signed-in Home APIs SDK belongs in the ignored `.home-sdk-repo` directory.
 
+Use Python 3.11+ for the maintenance helpers. From the repository root, install the downloaded
+archive (use its actual local path):
+
+```powershell
+python -B .github/scripts/install-home-sdk.py path/to/home.android.sdk_1_10_1.zip
+```
+
+`gradle/home-sdk.sha256` pins the exact archive reviewed for this project, not an independently
+published Google checksum. Do not bypass a mismatch; review SDK/version changes before updating it.
+The Gradle wrapper similarly verifies its distribution checksum.
+
 Once those artifacts are installed, build the debug APK with:
 
 ```powershell
@@ -91,6 +110,17 @@ Once those artifacts are installed, build the debug APK with:
 ```
 
 The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Enable installation from your browser or file manager, transfer the APK to the phone, and open it to sideload. Builds signed with a different certificate require a matching Android OAuth client and cannot update an installed build signed by another key.
+
+For contributors without the downloaded SDK, run:
+
+```powershell
+.\gradlew.bat -PincludeGoogleHome=false testDebugUnitTest lintDebug assembleDebug --console=plain
+```
+
+This compiles the shared app and real Device Access code with an explicitly unavailable Home
+adapter. Its separate package is `ca.humiditylogger.verification`; it cannot replace the normal
+app and official signing is prohibited. PR CI uses this mode without secrets. It does **not**
+verify real Google Home integration. Normal builds still include both providers by default.
 
 ## First run
 
@@ -127,3 +157,7 @@ After Device Access authorization, a refresh should show the selected Nest therm
 ## License
 
 The original project source is licensed under the [MIT License](LICENSE), copyright Benjamin Kar. Third-party SDKs and weather data retain their own licenses and terms. Nest Climate Monitor is an independent project and is not affiliated with or endorsed by Google or Nest.
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and **Settings → About → Open-source licenses**
+in a release APK. Debug builds show the upstream plugin's dependency-report placeholder.
+Use the [release checklist](docs/RELEASE_CHECKLIST.md) before publishing another APK.

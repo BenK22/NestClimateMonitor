@@ -1,6 +1,9 @@
 package ca.humiditylogger
 
 import android.content.Context
+import androidx.activity.result.ActivityResultCaller
+import com.google.home.ForcePermissionFlow
+import com.google.home.PermissionsResultStatus
 import com.google.home.FactoryRegistry
 import com.google.home.Home
 import com.google.home.HomeClient
@@ -41,8 +44,7 @@ class HomeReader private constructor(context: Context) {
         ),
     )
 
-    /** Shared SDK client; activities must register their permission result caller before consent. */
-    val client: HomeClient = Home.getClient(
+    private val client: HomeClient = Home.getClient(
         context.applicationContext,
         homeConfig = HomeConfig(
             coroutineContext = Dispatchers.IO,
@@ -51,14 +53,32 @@ class HomeReader private constructor(context: Context) {
         ),
     )
 
+    /** Registers an activity for SDK consent results without exposing SDK types to shared code. */
+    fun registerPermissionCaller(caller: ActivityResultCaller) {
+        client.registerActivityResultCallerForPermissions(caller)
+    }
+
+    /** Launches explicit consent and maps its result to the app's SDK-independent contract. */
+    suspend fun requestPermission(): HomePermissionResult {
+        val result = client.requestPermissions(ForcePermissionFlow.FORCE_LAUNCH)
+        return HomePermissionResult(
+            granted = result.status == PermissionsResultStatus.SUCCESS,
+            status = result.status.toString(),
+            errorMessage = result.errorMessage,
+        )
+    }
+
     /** Waits for initialized permission state for up to 15 seconds; timeout is an explicit error. */
-    suspend fun permissionState(): PermissionsState = withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
-        client.hasPermissions().first {
-            it != PermissionsState.PERMISSIONS_STATE_UNINITIALIZED
-        }
-    } ?: throw IllegalStateException(
-        "Google Home permission check timed out. Keep the phone unlocked and try again."
-    )
+    suspend fun permissionState(): HomePermissionState {
+        val state = withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
+            client.hasPermissions().first {
+                it != PermissionsState.PERMISSIONS_STATE_UNINITIALIZED
+            }
+        } ?: throw IllegalStateException(
+            "Google Home permission check timed out. Keep the phone unlocked and try again."
+        )
+        return if (state == PermissionsState.GRANTED) HomePermissionState.GRANTED else HomePermissionState.NOT_GRANTED
+    }
 
     /**
      * Discovers climate snapshots without persisting them or filtering the user's selection.
@@ -211,9 +231,3 @@ class HomeReader private constructor(context: Context) {
         }
     }
 }
-
-/** Unselected SDK snapshots and local diagnostics; diagnostics may contain private home/device names. */
-data class SampleResult(
-    val readings: List<Reading>,
-    val diagnostics: List<String>,
-)

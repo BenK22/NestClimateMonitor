@@ -1,0 +1,44 @@
+name: Android verification (without Google Home SDK)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Install required Android SDK components
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Test, lint and compile shared/SDM app code
+        run: ./gradlew -PincludeGoogleHome=false testDebugUnitTest lintDebug assembleDebug --console=plain
+      - name: Explain verification scope
+        run: echo "Google Home integration is excluded here. Full SDK checks run locally or in the trusted release workflow. No signing keys or SDK download secrets are provided to PR jobs."
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: android-verification-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore

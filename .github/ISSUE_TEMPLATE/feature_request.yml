@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest an improvement to this read-only personal-use app.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Explain the need without private data.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Suggested improvement and alternatives
+    validations:
+      required: true

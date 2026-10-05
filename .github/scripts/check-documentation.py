@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "app/src/main/java"
+SOURCES = [ROOT / f"app/src/{name}/java" for name in ("main", "googleHome", "noGoogleHome")]
 DECLARATION = re.compile(
     r"^\s*(?P<modifiers>(?:(?:public|internal|private|protected|override|open|final|"
     r"abstract|sealed|inline|suspend|tailrec|operator|infix|external|expect|actual)\s+)*)"
@@ -78,7 +78,7 @@ def self_test():
 def main():
     """Check every production Kotlin file and report filenames/lines, never source contents."""
     self_test()
-    files = sorted(SOURCE.rglob("*.kt"))
+    files = sorted(path for source in SOURCES for path in source.rglob("*.kt"))
     if not files:
         print("Documentation check failed: no production Kotlin sources found.", file=sys.stderr)
         return 1

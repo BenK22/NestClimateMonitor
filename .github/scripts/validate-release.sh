@@ -27,4 +27,8 @@ if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
     echo "Tag ${GITHUB_REF#refs/tags/} does not match Android versionName $app_version (expected v$app_version)"
     exit 1
   }
+  [[ -f "docs/releases/v$app_version.md" ]] || { echo "Release notes for this version are missing"; exit 1; }
+elif [[ "${GITHUB_REF:-}" != refs/heads/main ]]; then
+  echo "Signed manual builds are restricted to main or a matching version tag"
+  exit 1
 fi

@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible problem without private data.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Read docs/TROUBLESHOOTING.md first. Do not include secrets, authorization URLs, addresses, device IDs, CSVs or databases. Report security issues privately via SECURITY.md."
+  - type: input
+    id: versions
+    attributes:
+      label: App and Android versions
+      placeholder: "App version, Android version, device model (no serial number)"
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Indoor source
+      options: [Nest Device Access, Google Home, Not configured]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and expected / actual result
+      description: Include timing and screen/lock state if sampling is involved.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics (optional)
+      description: Review every line before sharing. Do not attach private exports.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, authorization URLs and personal identifiers.
+          required: true

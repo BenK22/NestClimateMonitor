@@ -8,6 +8,12 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="OssLicensesTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">#09100E</item>
+        <item name="android:textColorPrimary">#EEF6F3</item>
+        <item name="android:textColorSecondary">#9EB1AA</item>
+        <item name="colorAccent">#70DBB5</item>
+    </style>
     <style name="WidgetHeading">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>

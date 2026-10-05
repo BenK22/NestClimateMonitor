@@ -14,10 +14,18 @@ From the repository root in PowerShell:
 
 ```powershell
 python -B .github/scripts/check-documentation.py
+python -B -m unittest discover -s .github/tests -v
 .\gradlew.bat testDebugUnitTest lintDebug assembleDebug --console=plain
 python -B .github/scripts/check-publication.py --history
 git diff --check
 ```
+
+Python helpers require Python 3.11+. Fork-safe PR CI uses `-PincludeGoogleHome=false` with no
+downloaded SDK or signing secrets. Use that property on the Gradle command above if the SDK is
+unavailable. This distinct verification package checks shared/SDM code only; full-SDK checks
+remain mandatory before release. Install the reviewed SDK through `install-home-sdk.py`, not an
+unverified extraction. Never expose secrets to pull-request workflows or use `pull_request_target`
+to build contributor code.
 
 For SQLite/Keystore changes, attach an unlocked Android test device and also run:
 
@@ -70,3 +78,8 @@ signing material, local configuration and phone exports. The publication scan ch
 and history for known risky content but is not an exhaustive secret detector. Screenshots need
 visual privacy review. See [docs/PUBLISHING.md](docs/PUBLISHING.md) and
 [docs/RELEASING.md](docs/RELEASING.md). Do not change repository visibility as part of code work.
+
+The history scanner accepts the maintainer's chosen public identity and GitHub noreply authors.
+Contributors should use a GitHub noreply commit email; another personal email requires an explicit
+privacy-policy review rather than disabling the guard. Use the issue forms for bugs/features and
+[SECURITY.md](SECURITY.md) for private vulnerability reports. Maintenance/support is best-effort.

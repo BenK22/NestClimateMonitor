@@ -35,9 +35,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.FileProvider
-import com.google.home.ForcePermissionFlow
-import com.google.home.PermissionsResultStatus
-import com.google.home.PermissionsState
+import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,7 +99,7 @@ class MainActivity : ComponentActivity() {
         store = ReadingStore(applicationContext)
         useFahrenheit = getSharedPreferences(DISPLAY_PREFS, MODE_PRIVATE)
             .getBoolean(KEY_USE_FAHRENHEIT, true)
-        reader.client.registerActivityResultCallerForPermissions(this)
+        reader.registerPermissionCaller(this)
         setContentView(buildUi())
         refreshUiFromStorage()
         ClimateWidgetProvider.updateAll(applicationContext)
@@ -144,9 +142,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             status.text = "Opening Google Home permission screen…"
             runCatchingCancellable {
-                reader.client.requestPermissions(ForcePermissionFlow.FORCE_LAUNCH)
+                reader.requestPermission()
             }.onSuccess { result ->
-                if (result.status == PermissionsResultStatus.SUCCESS) {
+                if (result.granted) {
                     if (LoggerScheduler.isEnabled(this@MainActivity)) {
                         LoggerScheduler.start(this@MainActivity)
                         status.text = "15-minute background logging is active"
@@ -181,9 +179,9 @@ class MainActivity : ComponentActivity() {
             return
         }
         val homePermissionResult = runCatchingCancellable { reader.permissionState() }
-        homePermissionGranted = homePermissionResult.getOrNull() == PermissionsState.GRANTED
+        homePermissionGranted = homePermissionResult.getOrNull() == HomePermissionState.GRANTED
         homePermissionResult.onSuccess { state ->
-            val granted = state == PermissionsState.GRANTED
+            val granted = state == HomePermissionState.GRANTED
             homePermissionGranted = granted
             if (granted) {
                 if (LoggerScheduler.isEnabled(this)) {
@@ -679,6 +677,12 @@ class MainActivity : ComponentActivity() {
         listOf(unitsRow, locationRow, alertsRow).forEach { addMenuRow(panel, it) }
         panel.addView(sectionHeader("Data"))
         listOf(dataRow, exportRow, importRow).forEach { addMenuRow(panel, it) }
+        panel.addView(sectionHeader("About"))
+        val (licensesRow, _) = clickableRow("Open-source licenses", "Third-party libraries and notices")
+        addMenuRow(panel, licensesRow)
+        licensesRow.setOnClickListener {
+            startActivity(Intent(this, OssLicensesMenuActivity::class.java))
+        }
 
         val settingsScroll = ScrollView(this).apply {
             isFillViewport = true

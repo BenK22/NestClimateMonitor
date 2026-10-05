@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: mailto:benjkar@hotmail.com
+    about: Do not report vulnerabilities or credentials in public issues.
+  - name: Troubleshooting and compatibility
+    url: https://github.com/BenK22/NestClimateMonitor/blob/main/docs/TROUBLESHOOTING.md
+    about: Setup, weekly authorization renewal and background scheduling limitations.

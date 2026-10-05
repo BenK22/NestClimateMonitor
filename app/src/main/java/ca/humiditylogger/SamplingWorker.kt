@@ -6,7 +6,6 @@ import android.os.PowerManager
 import android.os.SystemClock
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.google.home.PermissionsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -105,7 +104,7 @@ class SamplingWorker(
                 }
 
                 val reader = HomeReader.getInstance(applicationContext)
-                if (reader.permissionState() != PermissionsState.GRANTED) {
+                if (reader.permissionState() != HomePermissionState.GRANTED) {
                     val weatherStatus = saveOutdoorReading(store)
                     LoggerScheduler.recordResult(
                         applicationContext,

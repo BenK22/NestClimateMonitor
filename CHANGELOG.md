@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added an offline open-source license screen and dependency/data notice inventory.
+- Added secret-free Android pull-request checks with an explicitly SDK-free verification package.
+- Pinned workflow actions, Gradle distribution and the reviewed Google Home SDK archive.
+- Hardened SDK installation and official APK validation; separated signing from release publishing.
+- Added security/support policies, issue templates, troubleshooting and a release checklist.
+
 ## 0.3.0
 
 - Renamed the app to Nest Climate Monitor and attributed the MIT license to Benjamin Kar.

@@ -1,10 +1,18 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.android.gms.oss-licenses-plugin")
 }
 
 // Signing inputs are environment-only: never bundle developer credentials or keystores in Git.
 val releaseKeystorePath = providers.environmentVariable("RELEASE_KEYSTORE_PATH").orNull
+// Fork-safe CI compiles real SDM/shared code without distributing Google's downloaded SDK.
+val includeGoogleHome = providers.gradleProperty("includeGoogleHome").orElse("true").get().also {
+    require(it in setOf("true", "false")) { "includeGoogleHome must be true or false" }
+}.toBoolean()
+require(includeGoogleHome || releaseKeystorePath == null) {
+    "Official signing is forbidden for SDK-free verification builds"
+}
 
 android {
     namespace = "ca.humiditylogger"
@@ -16,8 +24,14 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "0.3.0"
+        if (!includeGoogleHome) {
+            applicationIdSuffix = ".verification"
+            versionNameSuffix = "-no-google-home"
+        }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    sourceSets.getByName("main").java.srcDir(if (includeGoogleHome) "src/googleHome/java" else "src/noGoogleHome/java")
 
     signingConfigs {
         if (releaseKeystorePath != null) {
@@ -66,8 +80,11 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.12.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
-    implementation("com.google.android.gms:play-services-home:17.1.0")
-    implementation("com.google.android.gms:play-services-home-types:17.1.0")
+    if (includeGoogleHome) {
+        implementation("com.google.android.gms:play-services-home:17.1.0")
+        implementation("com.google.android.gms:play-services-home-types:17.1.0")
+    }
+    implementation("com.google.android.gms:play-services-oss-licenses:17.5.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
     androidTestImplementation("androidx.test:core:1.7.0")
