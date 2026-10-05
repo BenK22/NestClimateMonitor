@@ -69,6 +69,17 @@ The later APK metadata opt-out was checked separately as recorded below.
 - Independent-account onboarding remains untested and open; v0.4.0 retains prerelease status
   with this limitation documented. These checks do not establish every launcher/device or future
   overnight schedule. No signing material or personal data is included in the repository.
+- The final official APK was rebuilt from tagged commit `155b4d0`, and its packaged version-control
+  metadata was checked against that exact commit. Both GitHub gates passed:
+  [Android/Linux JDK 17 verification](https://github.com/BenK22/NestClimateMonitor/actions/runs/37356530403)
+  and [publication/documentation/helpers](https://github.com/BenK22/NestClimateMonitor/actions/runs/37356530338).
+  The tag workflow skipped automatic signing because repository signing inputs are unconfigured;
+  this release was signed locally, not built by that skipped job.
+- [v0.4.0 was published as a prerelease](https://github.com/BenK22/NestClimateMonitor/releases/tag/v0.4.0).
+  Both uploaded assets were downloaded again and matched the reviewed local APK/checksum bytes.
+  APK SHA-256: `cf0d75130f08763de246e325d8c50a4af8cc32164c108aa62044877a3e92cb8e`.
+  v0.3.0 assets and repository visibility were unchanged. This later publication-record edit does
+  not change the tagged release source or published APK.
 
 ## Remaining human checks and known warnings
 
