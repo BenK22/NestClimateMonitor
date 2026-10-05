@@ -27,6 +27,7 @@ def load_script(name):
 
 sdk = load_script("install-home-sdk")
 release = load_script("package-release")
+publication = load_script("check-publication")
 
 
 class ArchiveTests(unittest.TestCase):
@@ -215,6 +216,21 @@ class WorkflowTests(unittest.TestCase):
         wrapper = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text()
         self.assertRegex(wrapper, r"distributionSha256Sum=[0-9a-f]{64}")
         self.assertIn("validateDistributionUrl=true", wrapper)
+
+
+class PublicationBotTests(unittest.TestCase):
+    def test_public_dependabot_trailer_is_allowed(self):
+        findings = set()
+        publication.check_content("fixture", b"Signed-off-by: dependabot[bot] <support@github.com>", findings)
+        self.assertEqual(set(), findings)
+
+    def test_allowlist_does_not_allow_other_github_or_personal_addresses(self):
+        for domain in (b"github.com", b"private.invalid"):
+            # Construct synthetic rejected addresses without publishing an email literal.
+            email = b"synthetic-person" + bytes([64]) + domain
+            findings = set()
+            publication.check_content("fixture", email, findings)
+            self.assertIn(("fixture", "personal email address"), findings)
 
 
 class ReleaseInputTests(unittest.TestCase):

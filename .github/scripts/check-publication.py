@@ -19,7 +19,9 @@ PATTERNS = {
 EMAIL = re.compile(rb"[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 # The project owner explicitly chose this identity for public Git attribution.
 PUBLIC_EMAILS = {b"benjkar@hotmail.com"}
-PUBLIC_BOT_EMAILS = {b"noreply@github.com", b"web-flow@github.com"}
+# Dependabot uses GitHub's public support address in Signed-off-by commit trailers.
+# Keep this exact-address allowlist narrow; do not permit all github.com email addresses.
+PUBLIC_BOT_EMAILS = {b"noreply@github.com", b"web-flow@github.com", b"support@github.com"}
 PUBLIC_NAMES = {"Benjamin Kar", "Ben Kar", "GitHub", "Home Climate Monitor contributors"}
 LOCAL_DIRS = {".beads", ".aws", ".ssh", ".codex", ".agents", ".private-backups", ".home-sdk-repo"}
 LOCAL_SUFFIXES = {".apk", ".aab", ".jks", ".keystore", ".pem", ".key", ".p12", ".pfx", ".bundle", ".db", ".sqlite", ".sqlite3", ".csv", ".log"}
