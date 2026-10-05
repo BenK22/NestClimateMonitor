@@ -29,8 +29,8 @@ android {
         applicationId = "ca.humiditylogger"
         minSdk = 29
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         if (!includeGoogleHome) {
             applicationIdSuffix = ".verification"
             versionNameSuffix = "-no-google-home"
@@ -62,6 +62,13 @@ android {
         getByName("release") {
             isMinifyEnabled = false
             if (releaseKeystorePath != null) signingConfig = signingConfigs.getByName("release")
+        }
+        // Exercise real release notices without replacing a developer-signed installation.
+        create("releaseSmoke") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".releasesmoke"
+            versionNameSuffix = "-release-smoke"
+            matchingFallbacks += listOf("release")
         }
     }
 

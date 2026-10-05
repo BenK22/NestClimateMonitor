@@ -181,6 +181,15 @@ class NoticeTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_release_smoke_package_is_isolated_and_not_instrumented(self):
+        text = (ROOT / "app/build.gradle.kts").read_text()
+        block = re.search(r'create\("releaseSmoke"\)\s*\{([^}]+)\}', text)
+        self.assertIsNotNone(block)
+        self.assertIn('initWith(getByName("release"))', block[1])
+        self.assertIn('applicationIdSuffix = ".releasesmoke"', block[1])
+        self.assertIn('versionNameSuffix = "-release-smoke"', block[1])
+        self.assertIn('variantBuilder.buildType == "deviceTest"', text)
+
     def test_apk_metadata_opt_out_keeps_license_inventory_enabled(self):
         text = (ROOT / "app/build.gradle.kts").read_text()
         block = re.search(r"dependenciesInfo\s*\{([^}]+)\}", text)

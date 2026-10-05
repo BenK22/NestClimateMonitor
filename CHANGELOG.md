@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0
+
 - Added an offline open-source license screen and dependency/data notice inventory.
 - Added secret-free Android pull-request checks with an explicitly SDK-free verification package.
 - Pinned workflow actions, Gradle distribution and the reviewed Google Home SDK archive.

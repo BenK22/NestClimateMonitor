@@ -34,6 +34,13 @@ Debug and release certificates differ. Existing debug users must export their re
 
 ### APK dependency metadata and licenses
 
+For a phone with the developer-signed app, `assembleReleaseSmoke` creates an isolated
+`ca.humiditylogger.releasesmoke` package with release notices and a `-release-smoke` version suffix.
+Set the existing release signing inputs to install it. This is only a test artifact: it has no
+access to the normal app's history/credentials and must never be published as the official APK.
+Use `assembleDebug` with the matching developer key to update the existing development app
+without uninstalling it. Only `assembleRelease` produces the official release package.
+
 GitHub-distributed APKs set `dependenciesInfo.includeInApk = false`: Google's encrypted
 Play-specific SDK inventory is not embedded in the APK signing block. Bundle metadata remains
 enabled so AGP still provides the dependency report consumed by the OSS licenses plugin.
@@ -92,5 +99,4 @@ SDK-free, secret-free workflow, not proof of full Google Home integration.
 
 Complete [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including confirmation of the chosen key
 storage policy and independent-account onboarding, before making release-readiness claims.
-Current source changes
-under **Unreleased** do not alter the already published v0.3.0 APK.
+New release source does not alter the already published v0.3.0 APK.
