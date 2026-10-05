@@ -46,6 +46,30 @@ The later APK metadata opt-out was checked separately as recorded below.
   while bundle dependency inventory and the OSS plugin remain enabled. Documentation, tracked-file
   privacy and reachable-history checks passed. Other deprecation warnings remain.
 
+## v0.4.0 phone/release checks (2026-10-05)
+
+- Full-SDK source `f3cb633` passed 53 JVM tests, debug/release/release-smoke lint, and assembly of
+  all three APK variants. The official v0.4.0/versionCode 4 APK passed the packaging helper's
+  permanent-signer, package/version, non-debuggable and generated-notice checks (149 entries).
+- The connected phone had a developer-signed v0.3.0, not the official release certificate.
+  After verifying matching developer certificates, `adb install -r` updated it to developer-signed
+  v0.4.0 without uninstalling. The existing reading count and all five saved preference files were
+  unchanged, including the encrypted Nest connection. This is a tested **development-to-development**
+  update, not a claim that the official APK was installed over that differently signed app.
+- A later dashboard check showed a new successful indoor/outdoor sample after the update;
+  history grew and the saved Nest connection remained unchanged. Logger status naturally changed
+  as sampling resumed. This checks sampling on this phone, not universal overnight timing.
+- A separately signed `ca.humiditylogger.releasesmoke` installation exercised actual release
+  notices without accessing the normal app's data. Settings opened the populated license menu;
+  AndroidX's link-only notice and Dagger's embedded text rendered. Network access was not disabled
+  and external license URLs were not followed. The temporary test app was removed afterward.
+- 27 helper regression tests passed, including smoke-package isolation. Publication/history and
+  production Kotlin documentation scans passed. Official v0.3.0 and v0.4.0 certificates match;
+  the public release's in-place upgrade has not been tested on a separate official installation.
+- Independent-account onboarding remains untested and open; v0.4.0 retains prerelease status
+  with this limitation documented. These checks do not establish every launcher/device or future
+  overnight schedule. No signing material or personal data is included in the repository.
+
 ## Remaining human checks and known warnings
 
 - Separate-account onboarding and weekly grant renewal still require maintainer confirmation.
@@ -54,8 +78,8 @@ The later APK metadata opt-out was checked separately as recorded below.
   `.private-backups/release-signing`, with neither file tracked. The maintainer chose local-only
   storage on 2026-10-05; no off-machine backup or recovery test was performed. Losing this local
   storage would prevent signing compatible updates. Git ignore rules are not encryption or backup.
-- Actual offline license-screen navigation, all supported thermostat models, every launcher and
-  exact overnight sampling behavior were not established by these tests. Use the
+- All supported thermostat models, every launcher and exact overnight sampling behavior were
+  not established by these tests. A network-disabled license-screen check also remains unperformed. Use the
   [release checklist](RELEASE_CHECKLIST.md) and [troubleshooting](TROUBLESHOOTING.md).
 - Existing Android/Kotlin deprecation/lint warnings remain. Builds are not claimed warning-free.
 - The original APK build invoked AGP 8.9.3's `sdkReleaseDependencyData` task, which reported old

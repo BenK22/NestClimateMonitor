@@ -47,7 +47,7 @@ Click a screenshot to view it at full size. Private device identifiers are hidde
 
 ## Install the APK
 
-Download the signed APK from [GitHub Releases](https://github.com/BenK22/NestClimateMonitor/releases). The first release is a prerelease intended for personal sideloading on **Android 10 or newer**. Allow installation from your browser or file manager, then open the APK. Google connection setup is still required; each user supplies their own credentials.
+Download the signed APK from [GitHub Releases](https://github.com/BenK22/NestClimateMonitor/releases). Releases are currently prereleases intended for personal sideloading on **Android 10 or newer**. Allow installation from your browser or file manager, then open the APK. Google connection setup is still required; each user supplies their own credentials.
 
 The release includes a SHA-256 checksum, and the public release-signing fingerprint is documented in [docs/RELEASING.md](docs/RELEASING.md) for Google Home Android OAuth setup.
 
