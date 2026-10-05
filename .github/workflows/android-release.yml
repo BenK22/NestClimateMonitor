@@ -50,7 +50,7 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
       - name: Install required Android SDK components
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+        run: bash .github/scripts/install-android-components.sh
       - name: Validate private build inputs and tag
         env:
           HOME_SDK_URL: ${{ secrets.HOME_SDK_URL }}

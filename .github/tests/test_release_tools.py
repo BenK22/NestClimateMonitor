@@ -180,6 +180,12 @@ class NoticeTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_workflows_use_sdk_helper_not_path_assumption(self):
+        for name in ("android-check.yml", "android-release.yml"):
+            text = (ROOT / ".github/workflows" / name).read_text()
+            self.assertIn("bash .github/scripts/install-android-components.sh", text)
+            self.assertNotIn('run: sdkmanager ', text)
+
     def test_all_external_actions_use_full_commit_pins(self):
         for path in (ROOT / ".github/workflows").glob("*.yml"):
             for action in re.findall(r"uses:\s*([^\s#]+)", path.read_text()):
