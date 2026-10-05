@@ -81,6 +81,28 @@ The later APK metadata opt-out was checked separately as recorded below.
   v0.3.0 assets and repository visibility were unchanged. This later publication-record edit does
   not change the tagged release source or published APK.
 
+## v0.4.1 footer/release checks (2026-10-05)
+
+- The version footer was visually verified at the bottom of the maintainer's dashboard.
+  Nine isolated device tests passed on footer source `e802f32`, including checking the generated
+  variant version, final dashboard position and activity recreation. The initial UI test could
+  not resume with the phone locked; rerunning after unlocking passed all nine tests.
+- Release source `3cc0555` changes the version to 0.4.1/versionCode 5 and records the maintainer's
+  waived validation checks. Full-SDK 53 JVM tests, debug/release lint and debug/release assembly
+  passed. All 27 helper tests and documentation/publication-history checks passed.
+- The official APK passed permanent-certificate, package/version, non-debuggable and generated
+  license-resource checks. Its packaged VCS commit matches tagged source `3cc0555`. Release
+  configuration uses `DEBUG = false` and version 0.4.1; development builds identify themselves.
+- Both source-commit GitHub gates passed:
+  [Android verification](https://github.com/BenK22/NestClimateMonitor/actions/runs/37359955172)
+  and [publication/documentation/helpers](https://github.com/BenK22/NestClimateMonitor/actions/runs/37359955253).
+  This release was signed locally using the existing permanent key, not by automatic signing.
+- [v0.4.1 was published as a prerelease](https://github.com/BenK22/NestClimateMonitor/releases/tag/v0.4.1).
+  Both uploaded assets were downloaded and matched the reviewed local APK/checksum bytes.
+  APK SHA-256: `23014e4a195dbc3c6598df583c1f0a82e2d333cea9813b16defb8c40d637eee0`.
+  No prior release assets or repository visibility were changed. This publication record is
+  subsequent documentation, not a change to the tagged APK source.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
