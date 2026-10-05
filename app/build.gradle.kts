@@ -18,6 +18,10 @@ android {
     namespace = "ca.humiditylogger"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     // GitHub APKs do not need Google Play's encrypted SDK inventory in the signing block.
     // Keep bundle metadata enabled so the OSS plugin still receives the dependency report.
     dependenciesInfo {

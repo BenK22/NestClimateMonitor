@@ -1945,6 +1945,19 @@ class MainActivity : ComponentActivity() {
             })
         }
 
+        // Generated per variant: never let this footer drift from the installed APK version.
+        root.addView(TextView(this).apply {
+            tag = "app_version_footer"
+            text = getString(
+                if (BuildConfig.DEBUG) R.string.app_version_development else R.string.app_version,
+                BuildConfig.VERSION_NAME,
+            )
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setTextColor(TEXT_SECONDARY)
+            setPadding(0, dp(14), 0, 0)
+        })
+
         val scrollView = ScrollView(this).apply {
             setBackgroundColor(BACKGROUND)
             addView(root)

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show the installed app version at the bottom of the dashboard, identifying development builds.
+
 ## 0.4.0
 
 - Added an offline open-source license screen and dependency/data notice inventory.
