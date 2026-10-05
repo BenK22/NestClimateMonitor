@@ -4,9 +4,12 @@ import contextlib
 import hashlib
 import importlib.util
 import io
+import os
 from pathlib import Path
 import re
+import shutil
 import stat
+import subprocess
 import tempfile
 import unittest
 import urllib.request
@@ -206,6 +209,42 @@ class WorkflowTests(unittest.TestCase):
         wrapper = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text()
         self.assertRegex(wrapper, r"distributionSha256Sum=[0-9a-f]{64}")
         self.assertIn("validateDistributionUrl=true", wrapper)
+
+
+class ReleaseInputTests(unittest.TestCase):
+    def run_validation(self, ref, missing=None):
+        bash = (Path("C:/Program Files/Git/bin/bash.exe") if os.name == "nt"
+                else Path(shutil.which("bash") or "/unavailable"))
+        if not bash.is_file():
+            self.skipTest("Bash unavailable")
+        env = dict(os.environ, GITHUB_REF=ref)
+        for name in ("HOME_SDK_URL", "RELEASE_KEYSTORE_BASE64", "RELEASE_STORE_PASSWORD",
+                     "RELEASE_KEY_ALIAS", "RELEASE_KEY_PASSWORD"):
+            env[name] = "synthetic-private-input"
+        if missing:
+            env.pop(missing)
+        # read_text normalizes CRLF in Windows working copies; Git attributes keep
+        # committed shell scripts LF for Linux runners.
+        script = (ROOT / ".github/scripts/validate-release.sh").read_text()
+        result = subprocess.run([str(bash), "-s"], input=script, text=True, encoding="utf-8",
+                                cwd=ROOT, env=env, capture_output=True, timeout=20)
+        self.assertNotIn("synthetic-private-input", result.stdout + result.stderr)
+        return result
+
+    def test_manual_signing_accepts_main_only(self):
+        self.assertEqual(0, self.run_validation("refs/heads/main").returncode)
+        self.assertNotEqual(0, self.run_validation("refs/heads/contributor").returncode)
+
+    def test_missing_input_rejected_without_echoing_values(self):
+        result = self.run_validation("refs/heads/main", missing="RELEASE_KEY_PASSWORD")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("Missing RELEASE_KEY_PASSWORD", result.stdout)
+
+    def test_tag_must_match_version_and_have_release_notes(self):
+        text = (ROOT / "app/build.gradle.kts").read_text()
+        version = re.search(r'versionName = "([^"]+)"', text)[1]
+        self.assertEqual(0, self.run_validation("refs/tags/v" + version).returncode)
+        self.assertNotEqual(0, self.run_validation("refs/tags/v0.0.0-test").returncode)
 
 
 if __name__ == "__main__":
