@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+## 0.4.1
+
 - Show the installed app version at the bottom of the dashboard, identifying development builds.
+- Record the maintainer's waived separate-account and separate official-update checks without
+  claiming those tests passed; retain overnight sampling and recovery validation as follow-up.
 
 ## 0.4.0
 

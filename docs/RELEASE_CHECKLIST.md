@@ -2,6 +2,9 @@
 
 Run this for each new release. Unchecked items are not implied by a passing CI build.
 See [VALIDATION.md](VALIDATION.md) for the last recorded checks and remaining validation gaps.
+For personal-use prereleases, record any maintainer waiver explicitly rather than marking an
+unperformed check as passed. Separate-account onboarding and a separate official APK update
+were waived on 2026-10-05; overnight/recovery validation remains open.
 
 ## Source and distribution
 

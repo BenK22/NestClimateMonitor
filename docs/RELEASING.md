@@ -97,6 +97,8 @@ Manual signed workflow runs are restricted to `main` (or a matching tag), requir
 produce verified Actions artifacts without publishing when run on `main`. PR checks are a separate
 SDK-free, secret-free workflow, not proof of full Google Home integration.
 
-Complete [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including confirmation of the chosen key
-storage policy and independent-account onboarding, before making release-readiness claims.
+Review [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including the chosen key storage policy,
+before making release-readiness claims. Record completed checks, remaining gaps and explicit
+maintainer waivers in [VALIDATION.md](VALIDATION.md); a waived check is not a passed test.
+Independent-account onboarding was waived for personal-use prereleases on 2026-10-05.
 New release source does not alter the already published v0.3.0 APK.

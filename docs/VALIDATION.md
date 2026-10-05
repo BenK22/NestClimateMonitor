@@ -83,8 +83,13 @@ The later APK metadata opt-out was checked separately as recorded below.
 
 ## Remaining human checks and known warnings
 
-- Separate-account onboarding and weekly grant renewal still require maintainer confirmation.
-  The maintainer explicitly left the separate-account test open on 2026-10-05.
+- On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
+  APK-to-APK upgrade test for this personal-use prerelease. Setup worked on the maintainer's
+  account and the developer-signed phone update was verified. These waivers close the tracking
+  tasks; they do not turn unperformed independent-account or official-update tests into passes.
+- Overnight locked-screen collection, battery observations and network/authorization recovery
+  remain manual validation follow-ups. Weekly grant renewal still needs observation. Android
+  may delay scheduled work; no exact 15-minute timing guarantee is made.
 - The existing permanent signing key and password configuration were verified present in ignored
   `.private-backups/release-signing`, with neither file tracked. The maintainer chose local-only
   storage on 2026-10-05; no off-machine backup or recovery test was performed. Losing this local
