@@ -5,6 +5,21 @@ import org.junit.Test
 
 class WidgetGraphTest {
     @Test
+    fun reportedSizesSelectCurrentOrientationRegardlessOfListOrder() {
+        val portrait = WidgetGraphSizing.ContentSize(395, 150)
+        val landscape = WidgetGraphSizing.ContentSize(751, 64)
+        val reported = listOf(landscape, portrait)
+        assertEquals(portrait, WidgetGraphSizing.closestSize(reported, WidgetGraphSizing.ContentSize(395, 150)))
+        assertEquals(landscape, WidgetGraphSizing.closestSize(reported, WidgetGraphSizing.ContentSize(751, 80)))
+    }
+
+    @Test
+    fun absentReportedSizesUseCurrentOrientationEstimate() {
+        val estimate = WidgetGraphSizing.ContentSize(395, 150)
+        assertEquals(estimate, WidgetGraphSizing.closestSize(emptyList(), estimate))
+    }
+
+    @Test
     fun legacyBoundsChooseARealOrientationInsteadOfTheTwoMinimums() {
         assertEquals(WidgetGraphSizing.ContentSize(240, 220), WidgetGraphSizing.orientationSize(240, 100, 420, 220, false))
         assertEquals(WidgetGraphSizing.ContentSize(420, 100), WidgetGraphSizing.orientationSize(240, 100, 420, 220, true))

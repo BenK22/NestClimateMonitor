@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Build
 import android.util.SizeF
@@ -45,25 +46,23 @@ class GraphWidgetProvider : AppWidgetProvider() {
                     setOnClickPendingIntent(R.id.graph_widget_root, WidgetAppearance.launchApp(context))
                 }
             }
-            // Exact dimensions avoid fitCenter letterboxing on modern hosts. Older hosts receive
-            // separate orientation views; MIN_WIDTH and MIN_HEIGHT are not usually one real size.
+            // Select a single bitmap for the current orientation. A host can choose the wrong
+            // variant from a size map when its measured box differs from its reported bounds.
+            val landscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            val estimate = WidgetGraphSizing.orientationSize(
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110),
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(80),
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH),
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT),
+                landscape,
+            )
             val sizes = if (Build.VERSION.SDK_INT >= 31) {
                 BundleCompat.getParcelableArrayList(options, AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
                     ?.filter { it.width.isFinite() && it.height.isFinite() && it.width > 0 && it.height > 0 }
-                    ?.distinct()?.take(2)
+                    ?.map { WidgetGraphSizing.ContentSize(it.width.toInt(), it.height.toInt()) }
             } else null
-            val views = if (Build.VERSION.SDK_INT >= 31 && !sizes.isNullOrEmpty()) {
-                RemoteViews(sizes.associateWith { viewsFor(it.width.toInt(), it.height.toInt()) })
-            } else {
-                val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)
-                val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(80)
-                val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
-                val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
-                val portrait = WidgetGraphSizing.orientationSize(minWidth, minHeight, maxWidth, maxHeight, false)
-                val landscape = WidgetGraphSizing.orientationSize(minWidth, minHeight, maxWidth, maxHeight, true)
-                RemoteViews(viewsFor(landscape.widthDp, landscape.heightDp), viewsFor(portrait.widthDp, portrait.heightDp))
-            }
-            manager.updateAppWidget(id, views)
+            val size = WidgetGraphSizing.closestSize(sizes.orEmpty(), estimate)
+            manager.updateAppWidget(id, viewsFor(size.widthDp, size.heightDp))
         }
     }
 }

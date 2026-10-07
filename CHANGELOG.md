@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Fit graph widgets to launcher-reported sizes and preserve bitmap aspect ratio at large sizes.
+- Fill the graph widget's content box on third-party launchers rather than letterboxing a
+  mismatched orientation bitmap into a skinny strip.
 - Query the complete six-hour graph window instead of truncating it by total row count;
   show a dot when only one measurement exists.
 - Add sample-data widget picker previews without using personal history or settings.

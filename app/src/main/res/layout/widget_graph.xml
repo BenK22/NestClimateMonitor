@@ -5,10 +5,11 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
     android:padding="8dp">
+    <!-- Host estimates can differ from the actual box; never letterbox the live chart. -->
     <ImageView
         android:id="@+id/graph_widget_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:contentDescription="@string/climate_history_description"
-        android:scaleType="fitCenter" />
+        android:scaleType="fitXY" />
 </FrameLayout>

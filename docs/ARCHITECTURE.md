@@ -161,8 +161,12 @@ Widgets display cached history only and re-render on provider callbacks or expli
 They do not own a sampling schedule. Current-reading tiles use the newest 400 stored rows;
 graphs query the complete rolling six-hour time range and filter the current device/location.
 Rendering uses density-scaled ARGB bitmaps uniformly capped within 1200 × 750 pixels to preserve
-aspect ratio, with adaptive temperature/humidity scales. Graph-only widgets use exact launcher
-sizes when supplied or separate portrait/landscape bounds instead of combining both minimums.
+aspect ratio, with adaptive temperature/humidity scales. Graph-only widgets choose the reported
+size nearest the current orientation's bounds, falling back to those bounds when no exact sizes
+are supplied. They send one bitmap view, not a host-selected size/orientation map: a launcher
+whose measured box differs from its estimates can otherwise select the wrong bitmap variant.
+The live graph ImageView fills its content box even if a launcher's size estimate is inaccurate;
+a host/bitmap aspect mismatch may stretch the image, not leave a narrow strip.
 Widget paths omit null points rather than breaking on them; a single measurement is drawn as a
 dot. Missing historical samples are not invented. Transparency/border preferences are per
 widget ID. Picker layouts show explicitly labeled synthetic examples; the graph fallback image

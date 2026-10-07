@@ -1,7 +1,9 @@
 package ca.humiditylogger
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.RectF
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -10,6 +12,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -64,6 +67,26 @@ class WidgetRenderingTest {
                     assertNotNull(root.findViewById<ImageView>(R.id.widget_preview_graph).drawable)
                 }
             }
+        }
+    }
+
+    @Test fun liveGraphFillsHostBoxEvenWhenLauncherBitmapEstimateIsTooWide() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val bitmap = Bitmap.createBitmap(1200, 100, Bitmap.Config.ARGB_8888)
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_graph).apply {
+                    setImageViewBitmap(R.id.graph_widget_image, bitmap)
+                }
+                val root = views.apply(context, FrameLayout(context))
+                root.measure(View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(240, View.MeasureSpec.EXACTLY))
+                root.layout(0, 0, 600, 240)
+                val image = root.findViewById<ImageView>(R.id.graph_widget_image)
+                val plotted = RectF(image.drawable.bounds)
+                image.imageMatrix.mapRect(plotted)
+                assertEquals((image.width - image.paddingLeft - image.paddingRight).toFloat(), plotted.width(), 1f)
+                assertEquals((image.height - image.paddingTop - image.paddingBottom).toFloat(), plotted.height(), 1f)
+            } finally { bitmap.recycle() }
         }
     }
 }

@@ -1,6 +1,7 @@
 package ca.humiditylogger
 
 import kotlin.math.min
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Converts launcher bounds to positive graph content dimensions after layout padding/reserved rows. */
@@ -23,6 +24,12 @@ object WidgetGraphSizing {
     fun orientationSize(minWidth: Int, minHeight: Int, maxWidth: Int, maxHeight: Int, landscape: Boolean): ContentSize =
         if (landscape) ContentSize(maxWidth.coerceAtLeast(minWidth), minHeight)
         else ContentSize(minWidth, maxHeight.coerceAtLeast(minHeight))
+
+    /** Selects one reported size near current-orientation bounds instead of a host-selected map. */
+    fun closestSize(available: List<ContentSize>, estimate: ContentSize): ContentSize =
+        available.minByOrNull {
+            abs(it.widthDp.toLong() - estimate.widthDp) + abs(it.heightDp.toLong() - estimate.heightDp)
+        } ?: estimate
 
     /** Reserves the graph-only layout's padding on both axes. */
     fun graphOnlyContentSize(widthDp: Int, heightDp: Int): ContentSize = ContentSize(
