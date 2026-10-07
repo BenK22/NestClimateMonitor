@@ -5,6 +5,24 @@ import org.junit.Test
 
 class WidgetGraphTest {
     @Test
+    fun legacyBoundsChooseARealOrientationInsteadOfTheTwoMinimums() {
+        assertEquals(WidgetGraphSizing.ContentSize(240, 220), WidgetGraphSizing.orientationSize(240, 100, 420, 220, false))
+        assertEquals(WidgetGraphSizing.ContentSize(420, 100), WidgetGraphSizing.orientationSize(240, 100, 420, 220, true))
+    }
+
+    @Test
+    fun missingMaximumBoundsFallBackToMinimums() {
+        assertEquals(WidgetGraphSizing.ContentSize(240, 100), WidgetGraphSizing.orientationSize(240, 100, 0, 0, false))
+    }
+
+    @Test
+    fun largeBitmapCapsPreserveAspectRatioInsteadOfLetterboxing() {
+        assertEquals(WidgetGraphSizing.PixelSize(1200, 300), WidgetGraphSizing.pixelSize(800, 200, 3f))
+        assertEquals(WidgetGraphSizing.PixelSize(250, 750), WidgetGraphSizing.pixelSize(100, 300, 3f))
+        assertEquals(WidgetGraphSizing.PixelSize(200, 100), WidgetGraphSizing.pixelSize(100, 50, 2f))
+    }
+
+    @Test
     fun graphOnlyBitmapAccountsForLayoutPadding() {
         assertEquals(
             WidgetGraphSizing.ContentSize(224, 104),

@@ -11,6 +11,9 @@ data class WidgetReadingSeries(
 
 /** Shared presentation filters that prevent stale locations or unselected devices entering scales. */
 object WidgetReadingSelection {
+    /** Rolling history duration shared by the database query and bitmap renderer. */
+    const val GRAPH_WINDOW_MS = 6L * 60L * 60L * 1000L
+
     /** Selects matching indoor rows and the exact current outdoor label without reordering either. */
     fun select(
         readings: List<Reading>,

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_background" android:padding="8dp"
+    android:orientation="vertical" android:gravity="center">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+            <TextView style="@style/WidgetHeading" android:text="@string/inside_temperature_short" />
+            <TextView style="@style/WidgetValue" android:text="@string/widget_preview_inside_temp" android:textColor="#FF8570" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+            <TextView style="@style/WidgetHeading" android:text="@string/inside_humidity_short" />
+            <TextView style="@style/WidgetValue" android:text="@string/widget_preview_inside_humidity" android:textColor="#56BEFF" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_values_example" android:textColor="#C0D0CA" android:paddingTop="2dp" />
+</LinearLayout>

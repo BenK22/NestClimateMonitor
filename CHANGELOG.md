@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fit graph widgets to launcher-reported sizes and preserve bitmap aspect ratio at large sizes.
+- Query the complete six-hour graph window instead of truncating it by total row count;
+  show a dot when only one measurement exists.
+- Add sample-data widget picker previews without using personal history or settings.
+
 ## 0.4.1
 
 - Show the installed app version at the bottom of the dashboard, identifying development builds.

@@ -37,7 +37,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             GraphWidgetProvider.updateAll(context)
         }
 
-        /** Renders one widget from its launcher size and newest 400 stored rows, without sampling. */
+        /** Uses newest rows for tiles and the complete six-hour window for plots, without sampling. */
         fun updateWidget(context: Context, manager: AppWidgetManager, id: Int) {
             val options = manager.getAppWidgetOptions(id)
             val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)
@@ -45,7 +45,10 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             val showOutside = widthDp >= 220
             val showGraph = showOutside && heightDp >= 100
             val graphSize = WidgetGraphSizing.climateContentSize(widthDp, heightDp)
-            val readings = ReadingStore(context).use { it.recent(400) }
+            val now = System.currentTimeMillis()
+            val (readings, history) = ReadingStore(context).use {
+                it.recent(400) to if (showGraph) it.widgetHistory(now) else emptyList()
+            }
             val series = WidgetReadingSelection.select(
                 readings,
                 WeatherLocationStore.get(context).readingSource,
@@ -64,7 +67,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                 setViewVisibility(R.id.widget_graph, if (showGraph) View.VISIBLE else View.GONE)
                 if (showGraph) setImageViewBitmap(
                     R.id.widget_graph,
-                    WidgetGraph.render(context, readings, graphSize.widthDp, graphSize.heightDp),
+                    WidgetGraph.render(context, history, graphSize.widthDp, graphSize.heightDp, now),
                 )
                 val latest = indoor?.timestampMs
                 val freshness = WidgetFreshnessPolicy.evaluate(

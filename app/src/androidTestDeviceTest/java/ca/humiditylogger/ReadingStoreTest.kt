@@ -48,6 +48,17 @@ class ReadingStoreTest {
         assertEquals(emptyList<Reading>(), store.between(1_001, 2_000))
     }
 
+    @Test fun widgetHistoryKeepsEveryRowInTheWindowEvenAboveFourHundred() {
+        val now = 100_000_000L
+        val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
+        val rows = (0..450).map { Reading(start + it, "Synthetic", "id", 20.0, 40.0) }
+        store.insertAll(listOf(Reading(start - 1, "Old", "id", 21.0, 41.0)) + rows + listOf(
+            Reading(now, "Boundary", "id", 22.0, 42.0),
+            Reading(now + 1, "Future", "id", 23.0, 43.0),
+        ))
+        assertEquals(rows + Reading(now, "Boundary", "id", 22.0, 42.0), store.widgetHistory(now))
+    }
+
     @Test fun bulkInsertAndDeleteBeforeAreTransactional() {
         store.insertAll(listOf(
             Reading(1_000, "Nest", "id", 20.0, 40.0),

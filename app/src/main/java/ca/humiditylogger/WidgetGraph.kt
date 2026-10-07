@@ -11,7 +11,6 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.roundToInt
 
 /**
  * Raster chart renderer for RemoteViews, using a rolling six-hour window and separate dual axes.
@@ -21,7 +20,6 @@ import kotlin.math.roundToInt
  * capped to bound memory/Binder payload. Rendering reads stored rows; it never fetches data.
  */
 object WidgetGraph {
-    private const val GRAPH_WINDOW_MS = 6L * 60L * 60L * 1000L
     private val INDOOR_TEMP = Color.rgb(255, 133, 112)
     private val INDOOR_HUMID = Color.rgb(86, 190, 255)
     private val OUTDOOR_TEMP = Color.rgb(255, 190, 92)
@@ -37,12 +35,14 @@ object WidgetGraph {
      *
      * @param widthDp Available content width in dp, not raw bitmap pixels.
      * @param heightDp Available content height in dp, excluding the host's padding/status rows.
+     * @param nowMs Common query/render endpoint so samples on the window boundary are retained.
      * @return Density-scaled bitmap, capped at 1200 × 750 pixels; caller supplies the background.
      */
-    fun render(context: Context, all: List<Reading>, widthDp: Int, heightDp: Int): Bitmap {
+    fun render(context: Context, all: List<Reading>, widthDp: Int, heightDp: Int, nowMs: Long = System.currentTimeMillis()): Bitmap {
         val density = context.resources.displayMetrics.density
-        val width = (widthDp * density).roundToInt().coerceIn(1, 1200)
-        val height = (heightDp * density).roundToInt().coerceIn(1, 750)
+        val size = WidgetGraphSizing.pixelSize(widthDp, heightDp, density)
+        val width = size.width
+        val height = size.height
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val labelSize = (height * 0.095f).coerceIn(10f, 32f)
@@ -64,8 +64,9 @@ object WidgetGraph {
         val bottom = floor(height - labelSize - 12f)
         if (right <= left || bottom <= top) return bitmap
 
-        val now = System.currentTimeMillis()
-        val start = now - GRAPH_WINDOW_MS
+        val now = nowMs
+        val windowMs = WidgetReadingSelection.GRAPH_WINDOW_MS
+        val start = now - windowMs
         val readings = all.filter { it.timestampMs in start..now }
         val series = WidgetReadingSelection.select(
             readings,
@@ -123,10 +124,12 @@ object WidgetGraph {
         fun draw(values: List<Reading>, selector: (Reading) -> Double?, color: Int, humidity: Boolean) {
             // Widget paths omit null points; unlike the daily chart, they do not break on null rows.
             val points = values.mapNotNull { reading -> selector(reading)?.let { reading.timestampMs to it } }
-            if (points.size < 2) return
+            if (points.isEmpty()) return
             val path = Path()
+            var lastX = 0f
+            var lastY = 0f
             points.forEachIndexed { index, (time, raw) ->
-                val x = left + ((time - start).toFloat() / GRAPH_WINDOW_MS) * (right - left)
+                val x = left + ((time - start).toFloat() / windowMs) * (right - left)
                 val value = if (humidity) raw else displayTemp(raw)
                 val fraction = if (humidity) {
                     (value - humidityMin) / (humidityMax - humidityMin)
@@ -135,6 +138,8 @@ object WidgetGraph {
                 }
                 val y = bottom - fraction.toFloat().coerceIn(0f, 1f) * (bottom - top)
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                lastX = x
+                lastY = y
             }
             val lineWidth = (width / 330f).coerceIn(2.5f, 4.5f)
             canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -142,6 +147,11 @@ object WidgetGraph {
                 strokeWidth = lineWidth + 4f
                 style = Paint.Style.STROKE
             })
+            // A lone saved value is real data too; do not silently hide it until the next sample.
+            if (points.size == 1) {
+                canvas.drawCircle(lastX, lastY, lineWidth + 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = Color.BLACK })
+                canvas.drawCircle(lastX, lastY, lineWidth, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+            }
             canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 this.color = color
                 strokeWidth = lineWidth

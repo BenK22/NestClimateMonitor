@@ -158,10 +158,16 @@ Null values break a daily path; a long sampling gap alone does not. Touch shows 
 readings and never triggers a refresh.
 
 Widgets display cached history only and re-render on provider callbacks or explicit app updates.
-They do not own a sampling schedule. Both providers use the newest 400 stored rows; the renderer
-then filters a rolling six-hour window and current device/location. Rendering uses density-scaled
-ARGB bitmaps capped at 1200 × 750 pixels, with adaptive temperature/humidity scales. Widget paths
-omit null points rather than breaking on them. Transparency/border preferences are per widget ID.
+They do not own a sampling schedule. Current-reading tiles use the newest 400 stored rows;
+graphs query the complete rolling six-hour time range and filter the current device/location.
+Rendering uses density-scaled ARGB bitmaps uniformly capped within 1200 × 750 pixels to preserve
+aspect ratio, with adaptive temperature/humidity scales. Graph-only widgets use exact launcher
+sizes when supplied or separate portrait/landscape bounds instead of combining both minimums.
+Widget paths omit null points rather than breaking on them; a single measurement is drawn as a
+dot. Missing historical samples are not invented. Transparency/border preferences are per
+widget ID. Picker layouts show explicitly labeled synthetic examples; the graph fallback image
+uses the same synthetic chart art. Neither uses private saved readings, and preview layouts are
+separate from the live widget layout.
 Clicking launches the dashboard only. Freshness is based on selected indoor ambient history:
 disabled takes precedence, no reading is waiting, under 30 minutes is fresh, under 60 delayed,
 otherwise stale. Re-rendering, not a live timer, recomputes those labels.

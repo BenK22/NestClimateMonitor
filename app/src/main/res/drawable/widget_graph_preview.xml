@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Synthetic illustration only: never used as a live widget reading. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="300dp" android:height="160dp"
+    android:viewportWidth="300" android:viewportHeight="160">
+    <path android:fillColor="#16211D" android:pathData="M12,0 L288,0 Q300,0 300,12 L300,148 Q300,160 288,160 L12,160 Q0,160 0,148 L0,12 Q0,0 12,0" />
+    <path android:strokeColor="#42574E" android:strokeWidth="0.8" android:fillColor="@android:color/transparent"
+        android:pathData="M38,32 L262,32 M38,78 L262,78 M38,124 L262,124" />
+    <path android:strokeColor="#FF8570" android:strokeWidth="1.5" android:fillColor="@android:color/transparent"
+        android:pathData="M38,94 L62,94 L86,93 L110,95 L134,95 L158,94 L182,92 L206,93 L230,93 L262,94" />
+    <path android:strokeColor="#56BEFF" android:strokeWidth="1.5" android:fillColor="@android:color/transparent"
+        android:pathData="M38,80 L62,79 L86,78 L110,76 L134,73 L158,74 L182,77 L206,80 L230,78 L262,77" />
+    <path android:strokeColor="#FFBE5C" android:strokeWidth="1.5" android:fillColor="@android:color/transparent"
+        android:pathData="M38,111 L50,110 M57,108 L69,104 M76,100 L88,94 M95,89 L107,82 M114,78 L126,73 M133,69 L145,65 M152,62 L164,59 M171,57 L183,55 M190,54 L202,53 M209,52 L221,51 M228,50 L240,50 M247,50 L262,51" />
+    <path android:strokeColor="#74DED3" android:strokeWidth="1.5" android:fillColor="@android:color/transparent"
+        android:pathData="M38,40 L50,41 M57,43 L69,46 M76,49 L88,53 M95,56 L107,59 M114,62 L126,65 M133,68 L145,71 M152,73 L164,75 M171,78 L183,80 M190,82 L202,83 M209,85 L221,86 M228,87 L240,88 M247,89 L262,90" />
+</vector>

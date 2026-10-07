@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Picker-only layout: no credentials, address, or real sample history. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/widget_preview_graph" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_graph_preview" android:scaleType="fitXY"
+        android:contentDescription="@string/widget_preview_description" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="top" android:gravity="center" android:paddingTop="4dp"
+        android:text="@string/widget_preview_example" android:textSize="10sp" android:textColor="#C0D0CA" />
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="match_parent"
+        android:layout_gravity="start" android:paddingTop="20dp" android:paddingBottom="22dp"
+        android:paddingStart="6dp" android:orientation="vertical" android:gravity="center">
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_temp_high" android:textColor="#FF8570" />
+        <TextView android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_temp_mid" android:textColor="#FF8570" />
+        <TextView android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_temp_low" android:textColor="#FF8570" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="match_parent"
+        android:layout_gravity="end" android:paddingTop="20dp" android:paddingBottom="22dp"
+        android:paddingEnd="5dp" android:orientation="vertical" android:gravity="center">
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_humidity_high" android:textColor="#56BEFF" />
+        <TextView android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_humidity_mid" android:textColor="#56BEFF" />
+        <TextView android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_humidity_low" android:textColor="#56BEFF" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="bottom" android:paddingStart="36dp" android:paddingEnd="36dp" android:paddingBottom="3dp">
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_start" android:textColor="#C0D0CA" />
+        <TextView android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+        <TextView style="@style/WidgetPreviewAxis" android:text="@string/widget_preview_end" android:textColor="#C0D0CA" />
+    </LinearLayout>
+</FrameLayout>

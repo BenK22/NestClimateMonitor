@@ -15,4 +15,17 @@
     <string name="waiting_first_reading">Waiting for first reading</string>
     <string name="climate_graph_description">Recent indoor and outdoor climate graph</string>
     <string name="climate_history_description">Indoor and outdoor climate history</string>
+    <string name="widget_preview_description">Example indoor and outdoor temperature and humidity graph</string>
+    <string name="widget_preview_example">Example · 6 hours</string>
+    <string name="widget_preview_start">6h ago</string>
+    <string name="widget_preview_end">Now</string>
+    <string name="widget_preview_temp_high">80°</string>
+    <string name="widget_preview_temp_mid">70°</string>
+    <string name="widget_preview_temp_low">60°</string>
+    <string name="widget_preview_humidity_high">70%</string>
+    <string name="widget_preview_humidity_mid">50%</string>
+    <string name="widget_preview_humidity_low">30%</string>
+    <string name="widget_preview_inside_temp">71°</string>
+    <string name="widget_preview_inside_humidity">45%</string>
+    <string name="widget_preview_values_example">Example readings</string>
 </resources>

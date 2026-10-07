@@ -102,6 +102,12 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         limit = null,
     )
 
+    /** Full six-hour widget history, independent of how many devices/imported rows were saved. */
+    fun widgetHistory(nowMs: Long): List<Reading> = between(
+        nowMs - WidgetReadingSelection.GRAPH_WINDOW_MS,
+        nowMs + 1,
+    )
+
     private fun queryReadings(
         selection: String?,
         selectionArgs: Array<String>?,
