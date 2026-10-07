@@ -25,11 +25,25 @@ object WidgetGraphSizing {
         if (landscape) ContentSize(maxWidth.coerceAtLeast(minWidth), minHeight)
         else ContentSize(minWidth, maxHeight.coerceAtLeast(minHeight))
 
-    /** Selects one reported size near current-orientation bounds instead of a host-selected map. */
+    /** Selects a reported size near one orientation's legacy bounds. */
     fun closestSize(available: List<ContentSize>, estimate: ContentSize): ContentSize =
         available.minByOrNull {
             abs(it.widthDp.toLong() - estimate.widthDp) + abs(it.heightDp.toLong() - estimate.heightDp)
         } ?: estimate
+
+    /**
+     * Responsive minimum size that selects the wide (or equal-width tall) bitmap variant.
+     *
+     * The midpoint distinguishes orientations without requiring an exact reported size to fit.
+     * Host padding/rounding differences then cannot fall back to the wrong smallest-area bitmap.
+     * The other variant uses a 1 x 1 baseline; identical sizes need only one RemoteViews layout.
+     */
+    fun orientationBreakpoint(portrait: ContentSize, landscape: ContentSize): ContentSize =
+        if (landscape.widthDp > portrait.widthDp) {
+            ContentSize(((portrait.widthDp.toLong() + landscape.widthDp) / 2 + 1).toInt(), 1)
+        } else {
+            ContentSize(1, ((portrait.heightDp.toLong() + landscape.heightDp) / 2 + 1).toInt())
+        }
 
     /** Reserves the graph-only layout's padding on both axes. */
     fun graphOnlyContentSize(widthDp: Int, heightDp: Int): ContentSize = ContentSize(

@@ -102,11 +102,48 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         limit = null,
     )
 
-    /** Full six-hour widget history, independent of how many devices/imported rows were saved. */
-    fun widgetHistory(nowMs: Long): List<Reading> = between(
-        nowMs - WidgetReadingSelection.GRAPH_WINDOW_MS,
-        nowMs + 1,
-    )
+    /**
+     * Full six-hour widget history plus each stream's last earlier temperature/humidity sample.
+     *
+     * Predecessors let the renderer clip a crossing segment at the left edge. Metadata-only
+     * rows cannot hide an earlier measurement, and old-only streams must not be extrapolated.
+     * Source/device grouping preserves selection boundaries; no full-history list is allocated.
+     */
+    fun widgetHistory(nowMs: Long): List<Reading> {
+        val start = nowMs - WidgetReadingSelection.GRAPH_WINDOW_MS
+        return queryReadings(
+            selection = """
+                timestamp_ms <= ? AND (
+                    timestamp_ms >= ? OR id IN (
+                        ${predecessorIds("temperature_c")}
+                        UNION
+                        ${predecessorIds("humidity_percent")}
+                    )
+                )
+            """.trimIndent(),
+            selectionArgs = arrayOf(nowMs.toString(), start.toString(), start.toString(), start.toString()),
+            orderBy = "timestamp_ms ASC, id ASC",
+            limit = null,
+        )
+    }
+
+    // Only the two hard-coded measurement columns above enter this SQL fragment. Timestamp
+    // chooses the latest sample even after out-of-order imports; id resolves equal-time ties.
+    private fun predecessorIds(column: String): String = """
+        SELECT MAX(candidate.id)
+        FROM readings AS candidate
+        JOIN (
+            SELECT source, device_id, MAX(timestamp_ms) AS latest_ms
+            FROM readings
+            WHERE timestamp_ms < ? AND $column IS NOT NULL
+            GROUP BY source, device_id
+        ) AS latest
+        ON candidate.source = latest.source
+            AND candidate.device_id IS latest.device_id
+            AND candidate.timestamp_ms = latest.latest_ms
+        WHERE candidate.$column IS NOT NULL
+        GROUP BY candidate.source, candidate.device_id
+    """.trimIndent()
 
     private fun queryReadings(
         selection: String?,

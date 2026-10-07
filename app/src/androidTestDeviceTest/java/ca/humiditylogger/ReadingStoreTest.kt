@@ -52,11 +52,33 @@ class ReadingStoreTest {
         val now = 100_000_000L
         val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
         val rows = (0..450).map { Reading(start + it, "Synthetic", "id", 20.0, 40.0) }
-        store.insertAll(listOf(Reading(start - 1, "Old", "id", 21.0, 41.0)) + rows + listOf(
+        val predecessor = Reading(start - 1, "Old", "id", 21.0, 41.0)
+        store.insertAll(listOf(predecessor) + rows + listOf(
             Reading(now, "Boundary", "id", 22.0, 42.0),
             Reading(now + 1, "Future", "id", 23.0, 43.0),
+            Reading(start - 2, "Old", "id", 19.0, 39.0),
+            Reading(start - 1, "Old", "id", null, null),
         ))
-        assertEquals(rows + Reading(now, "Boundary", "id", 22.0, 42.0), store.widgetHistory(now))
+        assertEquals(listOf(predecessor) + rows + Reading(now, "Boundary", "id", 22.0, 42.0), store.widgetHistory(now))
+    }
+
+    @Test fun widgetHistoryKeepsPredecessorsPerTraitAndSourceDeviceIdentity() {
+        val now = 100_000_000L
+        val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
+        val temperature = Reading(start - 20, "Synthetic", "id-a", 22.0, null)
+        val humidity = Reading(start - 10, "Synthetic", "id-a", null, 45.0)
+        val otherDevice = Reading(start - 5, "Synthetic", "id-b", 18.0, 55.0)
+        val outdoorTemperature = Reading(start - 4, "Outdoor synthetic", null, 15.0, null)
+        val outdoorHumidity = Reading(start - 2, "Outdoor synthetic", null, null, 60.0)
+        val inside = Reading(start + 1, "Synthetic", "id-a", 23.0, 46.0)
+        store.insertAll(listOf(
+            temperature.copy(temperatureC = 21.0), temperature, humidity, otherDevice,
+            outdoorTemperature, outdoorHumidity, inside,
+            Reading(start - 1, "Synthetic", "id-a", null, null),
+            Reading(start - 30, "Synthetic", "id-a", 17.0, 35.0),
+        ))
+        assertEquals(listOf(temperature, humidity, otherDevice, outdoorTemperature, outdoorHumidity, inside),
+            store.widgetHistory(now))
     }
 
     @Test fun bulkInsertAndDeleteBeforeAreTransactional() {

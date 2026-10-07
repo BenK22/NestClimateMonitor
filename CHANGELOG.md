@@ -5,9 +5,14 @@
 - Fit graph widgets to launcher-reported sizes and preserve bitmap aspect ratio at large sizes.
 - Fill the graph widget's content box on third-party launchers rather than letterboxing a
   mismatched orientation bitmap into a skinny strip.
+- Let the widget host choose responsive graph sizes independently of the calling app's
+  orientation, with tolerance for launcher padding/size-estimate differences.
 - Query the complete six-hour graph window instead of truncating it by total row count;
   show a dot when only one measurement exists.
 - Add sample-data widget picker previews without using personal history or settings.
+- Match the dashboard's solid indoor/dashed outdoor lines in widget plots and legends.
+- Keep the last earlier measurement per stream/trait so widget lines crossing the six-hour
+  boundary reach the left edge; do not extrapolate history without bracketing saved samples.
 
 ## 0.4.1
 

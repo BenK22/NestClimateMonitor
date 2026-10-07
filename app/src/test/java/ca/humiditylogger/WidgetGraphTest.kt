@@ -5,6 +5,14 @@ import org.junit.Test
 
 class WidgetGraphTest {
     @Test
+    fun responsiveBreakpointToleratesReportedHeightPaddingDifferences() {
+        assertEquals(WidgetGraphSizing.ContentSize(574, 1), WidgetGraphSizing.orientationBreakpoint(
+            WidgetGraphSizing.ContentSize(395, 150), WidgetGraphSizing.ContentSize(751, 64)))
+        assertEquals(WidgetGraphSizing.ContentSize(1, 211), WidgetGraphSizing.orientationBreakpoint(
+            WidgetGraphSizing.ContentSize(395, 300), WidgetGraphSizing.ContentSize(395, 120)))
+    }
+
+    @Test
     fun reportedSizesSelectCurrentOrientationRegardlessOfListOrder() {
         val portrait = WidgetGraphSizing.ContentSize(395, 150)
         val landscape = WidgetGraphSizing.ContentSize(751, 64)

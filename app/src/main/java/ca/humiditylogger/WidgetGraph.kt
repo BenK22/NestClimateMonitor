@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
@@ -67,21 +68,23 @@ object WidgetGraph {
         val now = nowMs
         val windowMs = WidgetReadingSelection.GRAPH_WINDOW_MS
         val start = now - windowMs
-        val readings = all.filter { it.timestampMs in start..now }
         val series = WidgetReadingSelection.select(
-            readings,
+            all,
             WeatherLocationStore.get(context).readingSource,
         ) { ThermostatSelection.matches(context, it) }
-        val displayed = series.displayed
+        val indoorTemperature = WidgetGraphWindow.points(series.indoor, start, now) { it.temperatureC }
+        val indoorHumidity = WidgetGraphWindow.points(series.indoor, start, now) { it.humidityPercent }
+        val outdoorTemperature = WidgetGraphWindow.points(series.outdoor, start, now) { it.temperatureC }
+        val outdoorHumidity = WidgetGraphWindow.points(series.outdoor, start, now) { it.humidityPercent }
         val fahrenheit = useFahrenheit(context)
         fun displayTemp(c: Double) = if (fahrenheit) c * 9.0 / 5.0 + 32.0 else c
 
-        val temperatures = displayed.mapNotNull { it.temperatureC }.map(::displayTemp)
+        val temperatures = (indoorTemperature + outdoorTemperature).map { displayTemp(it.value) }
         val tempMin = floor((temperatures.minOrNull() ?: if (fahrenheit) 60.0 else 15.0) - 2.0)
         val tempMax = ceil((temperatures.maxOrNull() ?: if (fahrenheit) 80.0 else 25.0) + 2.0)
             .coerceAtLeast(tempMin + 4.0)
 
-        val humidities = displayed.mapNotNull { it.humidityPercent }
+        val humidities = (indoorHumidity + outdoorHumidity).map { it.value }
         var humidityMin = floor(((humidities.minOrNull() ?: 40.0) - 5.0) / 5.0) * 5.0
         var humidityMax = ceil(((humidities.maxOrNull() ?: 60.0) + 5.0) / 5.0) * 5.0
         if (humidityMax - humidityMin < 20.0) {
@@ -98,7 +101,7 @@ object WidgetGraph {
             humidityMax = 100.0
         }
 
-        val legendWidth = textPaint.measureText("OUT H") * 4f + textPaint.textSize * 4f
+        val legendWidth = (textPaint.measureText("OUT H") + textPaint.textSize * 1.5f + 5f) * 4f
         if (right - left >= legendWidth) {
             drawLegend(canvas, textPaint, left, right, legendBaseline)
         }
@@ -121,9 +124,7 @@ object WidgetGraph {
         val nowLabel = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(now))
         canvas.drawText(nowLabel, right - textPaint.measureText(nowLabel), height - 3f, textPaint)
 
-        fun draw(values: List<Reading>, selector: (Reading) -> Double?, color: Int, humidity: Boolean) {
-            // Widget paths omit null points; unlike the daily chart, they do not break on null rows.
-            val points = values.mapNotNull { reading -> selector(reading)?.let { reading.timestampMs to it } }
+        fun draw(points: List<WidgetGraphPoint>, color: Int, humidity: Boolean, dashed: Boolean = false) {
             if (points.isEmpty()) return
             val path = Path()
             var lastX = 0f
@@ -142,27 +143,33 @@ object WidgetGraph {
                 lastY = y
             }
             val lineWidth = (width / 330f).coerceIn(2.5f, 4.5f)
-            canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color
+                strokeWidth = lineWidth
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+                if (dashed) {
+                    val renderDensity = width.toFloat() / widthDp.coerceAtLeast(1)
+                    pathEffect = DashPathEffect(floatArrayOf(9f * renderDensity, 6f * renderDensity), 0f)
+                }
+            }
+            canvas.drawPath(path, Paint(linePaint).apply {
                 this.color = Color.argb(210, 0, 0, 0)
                 strokeWidth = lineWidth + 4f
-                style = Paint.Style.STROKE
             })
             // A lone saved value is real data too; do not silently hide it until the next sample.
             if (points.size == 1) {
                 canvas.drawCircle(lastX, lastY, lineWidth + 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = Color.BLACK })
                 canvas.drawCircle(lastX, lastY, lineWidth, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
             }
-            canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                this.color = color
-                strokeWidth = lineWidth
-                style = Paint.Style.STROKE
-            })
+            canvas.drawPath(path, linePaint)
         }
 
-        draw(series.indoor, { it.temperatureC }, INDOOR_TEMP, false)
-        draw(series.indoor, { it.humidityPercent }, INDOOR_HUMID, true)
-        draw(series.outdoor, { it.temperatureC }, OUTDOOR_TEMP, false)
-        draw(series.outdoor, { it.humidityPercent }, OUTDOOR_HUMID, true)
+        draw(indoorTemperature, INDOOR_TEMP, false)
+        draw(indoorHumidity, INDOOR_HUMID, true)
+        draw(outdoorTemperature, OUTDOOR_TEMP, false, dashed = true)
+        draw(outdoorHumidity, OUTDOOR_HUMID, true, dashed = true)
         return bitmap
     }
 
@@ -176,10 +183,19 @@ object WidgetGraph {
         val slot = (right - left) / entries.size
         entries.forEachIndexed { index, (label, color) ->
             val x = left + index * slot
-            val sampleEnd = x + (textPaint.textSize * 0.75f)
-            canvas.drawLine(x, baseline - textPaint.textSize * 0.3f, sampleEnd, baseline - textPaint.textSize * 0.3f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            val sampleEnd = x + (textPaint.textSize * 1.5f)
+            val sample = Path().apply {
+                moveTo(x, baseline - textPaint.textSize * 0.3f)
+                lineTo(sampleEnd, baseline - textPaint.textSize * 0.3f)
+            }
+            canvas.drawPath(sample, Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 this.color = color
                 strokeWidth = 4f
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+                if (index >= 2) pathEffect = DashPathEffect(
+                    floatArrayOf(textPaint.textSize * 0.5f, textPaint.textSize * 0.35f), 0f,
+                )
                 setShadowLayer(2f, 1f, 1f, Color.BLACK)
             })
             canvas.drawText(label, sampleEnd + 5f, baseline, textPaint)

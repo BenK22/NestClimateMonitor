@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
-import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Build
 import android.util.SizeF
@@ -46,23 +45,35 @@ class GraphWidgetProvider : AppWidgetProvider() {
                     setOnClickPendingIntent(R.id.graph_widget_root, WidgetAppearance.launchApp(context))
                 }
             }
-            // Select a single bitmap for the current orientation. A host can choose the wrong
-            // variant from a size map when its measured box differs from its reported bounds.
-            val landscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-            val estimate = WidgetGraphSizing.orientationSize(
-                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110),
-                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(80),
-                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH),
-                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT),
-                landscape,
-            )
+            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)
+            val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(80)
+            val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
+            val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+            val portraitEstimate = WidgetGraphSizing.orientationSize(minWidth, minHeight, maxWidth, maxHeight, false)
+            val landscapeEstimate = WidgetGraphSizing.orientationSize(minWidth, minHeight, maxWidth, maxHeight, true)
             val sizes = if (Build.VERSION.SDK_INT >= 31) {
                 BundleCompat.getParcelableArrayList(options, AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
                     ?.filter { it.width.isFinite() && it.height.isFinite() && it.width > 0 && it.height > 0 }
                     ?.map { WidgetGraphSizing.ContentSize(it.width.toInt(), it.height.toInt()) }
             } else null
-            val size = WidgetGraphSizing.closestSize(sizes.orEmpty(), estimate)
-            manager.updateAppWidget(id, viewsFor(size.widthDp, size.heightDp))
+            val portrait = WidgetGraphSizing.closestSize(sizes.orEmpty(), portraitEstimate)
+            val landscape = WidgetGraphSizing.closestSize(sizes.orEmpty(), landscapeEstimate)
+            val portraitViews = viewsFor(portrait.widthDp, portrait.heightDp)
+            val views = if (portrait == landscape) portraitViews else {
+                val landscapeViews = viewsFor(landscape.widthDp, landscape.heightDp)
+                if (Build.VERSION.SDK_INT >= 31) {
+                    // Breakpoints, not exact-size keys: Nova's measured box can be smaller than
+                    // its estimates. Also, the app may rotate while Home remains portrait.
+                    val switch = WidgetGraphSizing.orientationBreakpoint(portrait, landscape)
+                    val wideSwitch = landscape.widthDp > portrait.widthDp
+                    RemoteViews(mapOf(
+                        SizeF(1f, 1f) to if (wideSwitch) portraitViews else landscapeViews,
+                        SizeF(switch.widthDp.toFloat(), switch.heightDp.toFloat()) to
+                            if (wideSwitch) landscapeViews else portraitViews,
+                    ))
+                } else RemoteViews(landscapeViews, portraitViews)
+            }
+            manager.updateAppWidget(id, views)
         }
     }
 }

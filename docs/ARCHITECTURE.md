@@ -159,16 +159,23 @@ readings and never triggers a refresh.
 
 Widgets display cached history only and re-render on provider callbacks or explicit app updates.
 They do not own a sampling schedule. Current-reading tiles use the newest 400 stored rows;
-graphs query the complete rolling six-hour time range and filter the current device/location.
+graphs query the complete rolling six-hour time range plus the latest earlier temperature and
+humidity per source/device, then filter the current device/location. Earlier measurement queries
+ignore metadata-only rows, use timestamps rather than insertion order, and allocate no full-history
+list. The plot interpolates only a segment bracketed by saved samples at the six-hour left edge;
+an old-only stream or a stream without an earlier sample is never extended to fill the window.
 Rendering uses density-scaled ARGB bitmaps uniformly capped within 1200 × 750 pixels to preserve
-aspect ratio, with adaptive temperature/humidity scales. Graph-only widgets choose the reported
-size nearest the current orientation's bounds, falling back to those bounds when no exact sizes
-are supplied. They send one bitmap view, not a host-selected size/orientation map: a launcher
-whose measured box differs from its estimates can otherwise select the wrong bitmap variant.
+aspect ratio, with adaptive temperature/humidity scales. Graph-only widgets render at most two
+reported orientation sizes, falling back to legacy bounds. Android 12+ receives responsive minimum
+size keys at a width/height midpoint, not exact-size keys that may fail to fit a launcher's slightly
+smaller measured box. Older hosts choose portrait/landscape RemoteViews using their own context.
+The calling app's orientation does not select the bitmap: it can rotate while Home stays portrait.
 The live graph ImageView fills its content box even if a launcher's size estimate is inaccurate;
 a host/bitmap aspect mismatch may stretch the image, not leave a narrow strip.
-Widget paths omit null points rather than breaking on them; a single measurement is drawn as a
-dot. Missing historical samples are not invented. Transparency/border preferences are per
+Widget paths omit null points rather than breaking on them; elapsed gaps alone do not break lines,
+matching the daily chart. Indoor lines are solid, outdoor lines/legend samples dashed. A single
+measurement is drawn as a dot. Interpolated boundary drawing points are never saved as readings
+and do not establish regular sampling. Transparency/border preferences are per
 widget ID. Picker layouts show explicitly labeled synthetic examples; the graph fallback image
 uses the same synthetic chart art. Neither uses private saved readings, and preview layouts are
 separate from the live widget layout.
