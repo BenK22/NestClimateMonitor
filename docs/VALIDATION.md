@@ -125,6 +125,31 @@ The later APK metadata opt-out was checked separately as recorded below.
   or represented as new clean-machine checks for this patch. Publication/package verification is
   recorded separately after release. Previous human-check waivers and limitations remain in effect.
 
+## v0.4.2 publication checks (2026-10-07)
+
+- After a system crash, the Git staging index and one damaged documentation file were recovered.
+  Tracked text/source files were checked for null-byte corruption and Git object integrity was checked.
+  Damaged build caches and interrupted outputs were preserved in ignored backups; the final APK was
+  rebuilt with regenerated compiler transforms/output files, not taken from the interrupted build.
+- Tagged release source `5889917` passed full-SDK `testDebugUnitTest lintDebug lintRelease
+  assembleDebug assembleRelease`: 66 JVM tests, no failures, and no debug/release lint errors.
+  Existing deprecation/native-symbol warnings remain. The source also passed all 27 helper tests,
+  documentation coverage and publication/history scans.
+- `package-release.py` verified the permanent certificate, `ca.humiditylogger` package,
+  version 0.4.2/versionCode 6, non-debuggable state and generated license resources: 149 notice
+  entries and 265,264 bytes of notice text. Packaged VCS metadata matches the exact tagged commit.
+  The maintainer's differently signed working phone app was not replaced with the official APK.
+- Both exact-source GitHub gates passed:
+  [Android verification](https://github.com/BenK22/NestClimateMonitor/actions/runs/37671920081)
+  and [publication/documentation/helpers](https://github.com/BenK22/NestClimateMonitor/actions/runs/37671920044).
+  The [tag workflow](https://github.com/BenK22/NestClimateMonitor/actions/runs/37675112136) explicitly
+  skipped automatic signing/publishing because those inputs are unconfigured. Signing was local.
+- [v0.4.2 was published as a prerelease](https://github.com/BenK22/NestClimateMonitor/releases/tag/v0.4.2).
+  Both uploaded assets were downloaded and matched the reviewed local APK/checksum bytes.
+  APK SHA-256: `6f47c3b9026b03b52968228c64f3174f8a32966a7f265e0c4e4a491dcdebebb3`.
+  Existing releases/assets and repository visibility were unchanged. This later record does not
+  change the tagged release source or APK. Remaining human-check limitations above still apply.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
