@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.2
+
 - Fit graph widgets to launcher-reported sizes and preserve bitmap aspect ratio at large sizes.
 - Fill the graph widget's content box on third-party launchers rather than letterboxing a
   mismatched orientation bitmap into a skinny strip.
