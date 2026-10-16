@@ -150,6 +150,25 @@ The later APK metadata opt-out was checked separately as recorded below.
   Existing releases/assets and repository visibility were unchanged. This later record does not
   change the tagged release source or APK. Remaining human-check limitations above still apply.
 
+## v0.4.3 stability source checks (2026-10-16)
+
+- Fixes in `cce82c1` and `ea5e540` passed full-SDK `testDebugUnitTest`, `lintDebug`, `assembleDebug`
+  and device-test compilation on this machine, plus the publication and documentation scans.
+  No new automated tests were added for the threading, touch or launch-intent changes.
+- The developer-signed debug build of `ea5e540` was installed in place on the maintainer's Pixel 9a
+  (Android 17), replacing developer build 0.4.1. History (1,945 rows) and connection settings were
+  retained. With Battery Saver forced on, power simulated as unplugged and the battery at 25%:
+  cold start took 749 ms; a vertical swipe starting on the chart scrolled the page; a horizontal
+  drag showed the crosshair without scrolling; Settings opened, two rapid unit toggles returned
+  to Fahrenheit, the stored-data count loaded, and Done/Refresh now dismissed it; the manual
+  sample completed while the page was scrolled; graph-widget taps reused a single `MainActivity`
+  task (`sz=1`), Back returned to the launcher, and the page scrolled from the chart afterwards.
+  Logcat showed no ANR, fatal exception, SQLite lock or skipped-frame entries for the app.
+  Battery Saver and the simulated battery state were then restored.
+- These were scripted `adb` input checks on one phone with Device Access selected, not a long
+  soak test. Google Home source mode, overnight sampling and the official signed APK on a phone
+  were not exercised in this pass.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official

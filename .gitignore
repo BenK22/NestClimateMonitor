@@ -10,6 +10,8 @@
 /.codex/
 /.agents/
 /AGENTS.md
+/RELEASE_SIGNING.local.md
+/.beads.gate.lock
 /.aws/
 /.ssh/
 /.gcloud/

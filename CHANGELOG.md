@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.4.3
+
+- Fix app freezes, most noticeable on low battery: indoor-device filtering no longer decrypts the
+  Nest token through Android Keystore once per stored reading; dashboard loading, settings counts,
+  delete-all and widget rendering run off the UI thread; bursts of refreshes are coalesced.
+- Share one SQLite connection pool with write-ahead logging so background sampling no longer
+  blocks dashboard and widget reads.
+- Fix Settings appearing stuck open and repeated taps queuing behind a frozen UI.
+- Let vertical drags that start on the daily chart scroll the page; horizontal drags and taps
+  still move the crosshair.
+- Widget and humidity-alert taps resume the existing app like the launcher icon, instead of
+  stacking another dashboard on each tap.
+- Hardening: the exported widget-configuration screen only accepts this app's widgets, the
+  clipboard is cleared after importing the Google authorization URL, links no longer crash
+  without a browser, and new CSV exports remove older cached exports.
+
 ## 0.4.2
 
 - Fit graph widgets to launcher-reported sizes and preserve bitmap aspect ratio at large sizes.
