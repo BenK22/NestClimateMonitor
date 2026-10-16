@@ -97,7 +97,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-ktx:1.12.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
     if (includeGoogleHome) {
         implementation("com.google.android.gms:play-services-home:17.1.0")
         implementation("com.google.android.gms:play-services-home-types:17.1.0")
