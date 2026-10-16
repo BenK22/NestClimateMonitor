@@ -8,15 +8,21 @@ import android.database.sqlite.SQLiteOpenHelper
 /**
  * SQLite history repository with additive, non-destructive schema migrations.
  *
- * Queries return detached snapshots in chronological order. Calls are synchronous: bulk reads,
- * imports and exports should run off the UI thread. The owner must close this helper (use [use]
- * for short-lived consumers). Inserts do not deduplicate; CSV preview owns that policy.
+ * Queries return detached snapshots in chronological order. Calls are synchronous and must run
+ * off the UI thread. App code shares the process-wide [getInstance] helper, which is never closed:
+ * one connection pool plus WAL lets the worker write while the UI and widgets read without
+ * lock waits. Directly constructed instances (tests) must be closed by their owner. Inserts do not
+ * deduplicate; CSV preview owns that policy.
  *
  * @param databaseName Local database filename; injectable for isolated instrumentation tests.
  */
 class ReadingStore(context: Context, private val databaseName: String = "readings.db") :
     SQLiteOpenHelper(context, databaseName, null, DATABASE_VERSION) {
     private val appContext = context.applicationContext
+
+    init {
+        setWriteAheadLoggingEnabled(true)
+    }
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -222,7 +228,15 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
         arrayOf(timestampMs.toString()),
     )
 
-    private companion object {
-        const val DATABASE_VERSION = 3
+    companion object {
+        private const val DATABASE_VERSION = 3
+
+        @Volatile
+        private var instance: ReadingStore? = null
+
+        /** Process-wide shared store for app code; callers must not close it. */
+        fun getInstance(context: Context): ReadingStore = instance ?: synchronized(this) {
+            instance ?: ReadingStore(context.applicationContext).also { instance = it }
+        }
     }
 }

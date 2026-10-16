@@ -17,7 +17,9 @@ object IndoorSourcePreference {
     fun selected(context: Context): IndoorSource {
         val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_SOURCE, null)
-        return resolve(saved, DeviceAccessStore(context).isConnected())
+        // Only consult Device Access when no valid explicit choice is saved.
+        val explicit = runCatching { saved?.let(IndoorSource::valueOf) }.getOrNull()
+        return explicit ?: resolve(null, DeviceAccessStore(context).isConnected())
     }
 
     /** Saves provider choice only; neither starts a refresh nor deletes the other provider's grant. */

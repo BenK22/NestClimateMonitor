@@ -320,7 +320,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             store.setSelectedDeviceId(thermostat.deviceId)
             status.text = "Connected to ${thermostat.source}."
             renderIndicators()
-            ClimateWidgetProvider.updateAll(applicationContext)
+            WidgetUpdates.requestUpdateAll(applicationContext)
             AlertDialog.Builder(this)
                 .setTitle("Thermostat selected")
                 .setMessage("Only one thermostat was found, so ${thermostat.source} was selected automatically.")
@@ -347,7 +347,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                 store.setSelectedDeviceId(readings[which].deviceId)
                 status.text = "Connected to ${readings[which].source}."
                 renderIndicators()
-                ClimateWidgetProvider.updateAll(applicationContext)
+                WidgetUpdates.requestUpdateAll(applicationContext)
                 dialog.dismiss()
             }
             .setNegativeButton("Choose later", null)

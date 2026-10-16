@@ -176,8 +176,12 @@ class DeviceAccessStore(context: Context) {
         return config.projectId.isNotBlank() && config.clientId.isNotBlank() && config.hasClientSecret
     }
 
-    /** Local grant presence only; Google can still reject a revoked or expired authorization. */
-    fun isConnected(): Boolean = !refreshToken().isNullOrBlank()
+    /**
+     * Local grant presence only; Google can still reject a revoked or expired authorization.
+     * Deliberately avoids decryption: this is called from UI and widget paths, and every Keystore
+     * operation is a slow IPC. An undecryptable grant fails later in [DeviceAccessClient].
+     */
+    fun isConnected(): Boolean = !prefs.getString(KEY_REFRESH_TOKEN, null).isNullOrBlank()
 
     /** Selected full SDM resource name, not its display name or trailing identifier alone. */
     fun selectedDeviceId(): String? = prefs.getString(KEY_DEVICE_ID, null)?.takeIf { it.isNotBlank() }

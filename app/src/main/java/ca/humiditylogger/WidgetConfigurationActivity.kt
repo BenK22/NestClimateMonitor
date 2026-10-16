@@ -51,12 +51,15 @@ class WidgetConfigurationActivity : Activity() {
             setBackgroundColor(Color.rgb(112, 219, 181))
             setOnClickListener {
                 WidgetAppearance.save(this@WidgetConfigurationActivity, widgetId, transparent.isChecked, border.isChecked)
-                val manager = AppWidgetManager.getInstance(this@WidgetConfigurationActivity)
+                val appContext = applicationContext
+                val manager = AppWidgetManager.getInstance(appContext)
                 val provider = manager.getAppWidgetInfo(widgetId)?.provider?.className
-                if (provider == GraphWidgetProvider::class.java.name) {
-                    GraphWidgetProvider.updateWidget(this@WidgetConfigurationActivity, manager, widgetId)
-                } else {
-                    ClimateWidgetProvider.updateWidget(this@WidgetConfigurationActivity, manager, widgetId)
+                WidgetUpdates.launch {
+                    if (provider == GraphWidgetProvider::class.java.name) {
+                        GraphWidgetProvider.updateWidget(appContext, manager, widgetId)
+                    } else {
+                        ClimateWidgetProvider.updateWidget(appContext, manager, widgetId)
+                    }
                 }
                 setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
                 finish()

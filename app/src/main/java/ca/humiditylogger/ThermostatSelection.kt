@@ -34,21 +34,30 @@ object ThermostatSelection {
     }
 
     /** Checks provider and selected identity against current settings; does not require a measurement. */
-    fun matches(context: Context, reading: Reading): Boolean {
-        if (WeatherClient.isOutdoor(reading.source)) return false
+    fun matches(context: Context, reading: Reading): Boolean = matcher(context)(reading)
+
+    /**
+     * Snapshots the current provider and selections once and returns a reusable predicate.
+     * Use this when filtering many rows: settings are read once instead of once per reading.
+     */
+    fun matcher(context: Context): (Reading) -> Boolean {
         val source = IndoorSourcePreference.selected(context)
-        val isDeviceAccessReading = reading.deviceId?.startsWith("enterprises/") == true
-        if (source == IndoorSource.DEVICE_ACCESS && !isDeviceAccessReading) return false
-        if (source == IndoorSource.GOOGLE_HOME && isDeviceAccessReading) return false
         val deviceAccess = DeviceAccessStore(context)
-        if (isDeviceAccessReading) {
-            return matchesDeviceAccess(
-                deviceAccess.configuration().projectId,
-                deviceAccess.selectedDeviceId(),
-                reading,
-            )
+        val projectId = deviceAccess.configuration().projectId
+        val selectedDeviceAccessId = deviceAccess.selectedDeviceId()
+        val selectedSource = selectedSource(context)
+        val selectedDeviceId = selectedDeviceId(context)
+        return matcher@{ reading ->
+            if (WeatherClient.isOutdoor(reading.source)) return@matcher false
+            val isDeviceAccessReading = reading.deviceId?.startsWith("enterprises/") == true
+            if (source == IndoorSource.DEVICE_ACCESS && !isDeviceAccessReading) return@matcher false
+            if (source == IndoorSource.GOOGLE_HOME && isDeviceAccessReading) return@matcher false
+            if (isDeviceAccessReading) {
+                matchesDeviceAccess(projectId, selectedDeviceAccessId, reading)
+            } else {
+                matchesSelection(selectedSource, selectedDeviceId, reading)
+            }
         }
-        return matchesSelection(selectedSource(context), selectedDeviceId(context), reading)
     }
 
     /** Google Home compatibility filter: no source accepts all; missing IDs fall back to names. */
@@ -81,5 +90,5 @@ object ThermostatSelection {
 
     /** Applies current indoor selection while preserving the input ordering. */
     fun filter(context: Context, readings: List<Reading>): List<Reading> =
-        readings.filter { matches(context, it) }
+        readings.filter(matcher(context))
 }

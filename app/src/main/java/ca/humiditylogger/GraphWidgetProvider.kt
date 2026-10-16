@@ -9,14 +9,15 @@ import android.os.Build
 import android.util.SizeF
 import android.widget.RemoteViews
 import androidx.core.os.BundleCompat
+import ca.humiditylogger.WidgetUpdates.renderAsync
 
 /** Resizable graph-only RemoteViews host; uses the same local history/filter/renderer as climate tiles. */
 class GraphWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) =
-        ids.forEach { updateWidget(context, manager, it) }
+        renderAsync { ids.forEach { updateWidget(context, manager, it) } }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) =
-        updateWidget(context, manager, id)
+        renderAsync { updateWidget(context, manager, id) }
 
     override fun onDeleted(context: Context, ids: IntArray) =
         ids.forEach { WidgetAppearance.remove(context, it) }
@@ -33,7 +34,7 @@ class GraphWidgetProvider : AppWidgetProvider() {
         fun updateWidget(context: Context, manager: AppWidgetManager, id: Int) {
             val options = manager.getAppWidgetOptions(id)
             val now = System.currentTimeMillis()
-            val readings = ReadingStore(context).use { it.widgetHistory(now) }
+            val readings = ReadingStore.getInstance(context).widgetHistory(now)
             fun viewsFor(width: Int, height: Int): RemoteViews {
                 val contentSize = WidgetGraphSizing.graphOnlyContentSize(width, height)
                 return RemoteViews(context.packageName, R.layout.widget_graph).apply {

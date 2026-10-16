@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import ca.humiditylogger.WidgetUpdates.renderAsync
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
@@ -20,16 +21,19 @@ import kotlin.math.roundToInt
  */
 class ClimateWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) =
-        ids.forEach { updateWidget(context, manager, it) }
+        renderAsync { ids.forEach { updateWidget(context, manager, it) } }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) =
-        updateWidget(context, manager, id)
+        renderAsync { updateWidget(context, manager, id) }
 
     override fun onDeleted(context: Context, ids: IntArray) =
         ids.forEach { WidgetAppearance.remove(context, it) }
 
     companion object {
-        /** Re-renders every climate widget and graph-only widget from current local settings/data. */
+        /**
+         * Re-renders every climate widget and graph-only widget from current local settings/data.
+         * Blocking: call from a background thread, or use [WidgetUpdates.requestUpdateAll] from UI.
+         */
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, ClimateWidgetProvider::class.java)
@@ -46,13 +50,14 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             val showGraph = showOutside && heightDp >= 100
             val graphSize = WidgetGraphSizing.climateContentSize(widthDp, heightDp)
             val now = System.currentTimeMillis()
-            val (readings, history) = ReadingStore(context).use {
-                it.recent(400) to if (showGraph) it.widgetHistory(now) else emptyList()
-            }
+            val store = ReadingStore.getInstance(context)
+            val readings = store.recent(400)
+            val history = if (showGraph) store.widgetHistory(now) else emptyList()
             val series = WidgetReadingSelection.select(
                 readings,
                 WeatherLocationStore.get(context).readingSource,
-            ) { ThermostatSelection.matches(context, it) }
+                ThermostatSelection.matcher(context),
+            )
             val indoor = WidgetReadingSelection.latestIndoorClimate(series.indoor) { true }
             val outdoor = series.outdoor.lastOrNull()
             val fahrenheit = WidgetGraph.useFahrenheit(context)

@@ -71,7 +71,8 @@ object WidgetGraph {
         val series = WidgetReadingSelection.select(
             all,
             WeatherLocationStore.get(context).readingSource,
-        ) { ThermostatSelection.matches(context, it) }
+            ThermostatSelection.matcher(context),
+        )
         val indoorTemperature = WidgetGraphWindow.points(series.indoor, start, now) { it.temperatureC }
         val indoorHumidity = WidgetGraphWindow.points(series.indoor, start, now) { it.humidityPercent }
         val outdoorTemperature = WidgetGraphWindow.points(series.outdoor, start, now) { it.temperatureC }

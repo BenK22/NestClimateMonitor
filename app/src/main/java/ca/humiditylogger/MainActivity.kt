@@ -37,6 +37,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.FileProvider
 import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -49,8 +50,9 @@ import java.util.Locale
 /**
  * Dashboard, daily history and user-driven settings/CSV flows built with Android Views.
  *
- * Owns its [ReadingStore] until destruction and observes WorkManager for stored-data changes.
- * Opening/resuming renders history and ensures the unique schedule; it must not collect a sample.
+ * Uses the shared [ReadingStore] and observes WorkManager for stored-data changes. Storage reads
+ * and widget rendering run off the UI thread; slow work on the UI thread caused app freezes.
+ * Starting renders history and ensures the unique schedule; it must not collect a sample.
  * Explicit Refresh is delegated to [LoggerScheduler.refreshNow]. Landscape emphasizes the chart.
  */
 class MainActivity : ComponentActivity() {
@@ -88,6 +90,10 @@ class MainActivity : ComponentActivity() {
     private var periodicWorkState = "Unknown"
     private var manualWorkState = "Not requested"
     private var nextScheduledMs: Long? = null
+    private var refreshJob: Job? = null
+    private var pendingStatus: String? = null
+    private var settingsDialog: AlertDialog? = null
+    private var thermostatScan: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,13 +102,13 @@ class MainActivity : ComponentActivity() {
             LocalDate.now(zoneId),
         )
         reader = HomeReader.getInstance(applicationContext)
-        store = ReadingStore(applicationContext)
+        store = ReadingStore.getInstance(applicationContext)
         useFahrenheit = getSharedPreferences(DISPLAY_PREFS, MODE_PRIVATE)
             .getBoolean(KEY_USE_FAHRENHEIT, true)
         reader.registerPermissionCaller(this)
         setContentView(buildUi())
-        refreshUiFromStorage()
-        ClimateWidgetProvider.updateAll(applicationContext)
+        // The STARTED collector below performs the initial render.
+        WidgetUpdates.requestUpdateAll(applicationContext)
         LoggerScheduler.periodicWork(this).observe(this) { workInfos ->
             val work = workInfos.lastOrNull()
             periodicWorkState = work?.state?.name ?: "Not scheduled"
@@ -181,9 +187,7 @@ class MainActivity : ComponentActivity() {
         val homePermissionResult = runCatchingCancellable { reader.permissionState() }
         homePermissionGranted = homePermissionResult.getOrNull() == HomePermissionState.GRANTED
         homePermissionResult.onSuccess { state ->
-            val granted = state == HomePermissionState.GRANTED
-            homePermissionGranted = granted
-            if (granted) {
+            if (state == HomePermissionState.GRANTED) {
                 if (LoggerScheduler.isEnabled(this)) {
                     LoggerScheduler.start(this)
                     status.text = LoggerScheduler.status(this)
@@ -199,18 +203,76 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Renders cached selected-device/location data; deliberately contains no network collection. */
-    private fun refreshUiFromStorage() {
-        val recentReadings = store.recent()
-        val weatherLocation = WeatherLocationStore.get(this)
-        val last = WidgetReadingSelection.latestIndoorClimate(recentReadings) {
-            ThermostatSelection.matches(this, it)
+    /** Everything the dashboard renders, loaded together off the UI thread. */
+    private class DashboardData(
+        val loggingEnabled: Boolean,
+        val last: Reading?,
+        val outdoorLast: Reading?,
+        val indoorCount: Int,
+        val lastError: String?,
+        val diagnostics: String?,
+        val weatherLocation: WeatherLocation,
+        val deviceSelectionNeeded: Boolean,
+        val day: LocalDate,
+        val dayStartMs: Long,
+        val dayEndMs: Long,
+        val dayReadings: List<Reading>,
+    )
+
+    /**
+     * Renders cached selected-device/location data; deliberately contains no network collection.
+     * Loads on IO and coalesces bursts: a newer request cancels an older one still loading.
+     * A non-null [statusMessage] replaces the computed status line when the refresh renders.
+     */
+    private fun refreshUiFromStorage(statusMessage: String? = null) {
+        if (statusMessage != null) pendingStatus = statusMessage
+        val day = selectedDay
+        refreshJob?.cancel()
+        refreshJob = lifecycleScope.launch {
+            val data = withContext(Dispatchers.IO) { loadDashboard(day) }
+            renderDashboard(data)
         }
+    }
+
+    private fun loadDashboard(day: LocalDate): DashboardData {
+        val context = applicationContext
+        val recentReadings = store.recent()
+        val weatherLocation = WeatherLocationStore.get(context)
+        val matches = ThermostatSelection.matcher(context)
+        val dayStart = day.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val dayEnd = day.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val daySeries = WidgetReadingSelection.select(
+            store.between(dayStart, dayEnd),
+            weatherLocation.readingSource,
+            matches,
+        )
+        val deviceAccess = DeviceAccessStore(context)
+        return DashboardData(
+            loggingEnabled = LoggerScheduler.isEnabled(context),
+            last = WidgetReadingSelection.latestIndoorClimate(recentReadings, matches),
+            outdoorLast = recentReadings.lastOrNull { it.source == weatherLocation.readingSource },
+            indoorCount = recentReadings.count(matches),
+            lastError = LoggerScheduler.lastError(context),
+            diagnostics = LoggerScheduler.diagnostics(context),
+            weatherLocation = weatherLocation,
+            deviceSelectionNeeded = IndoorSourcePreference.selected(context) == IndoorSource.DEVICE_ACCESS &&
+                deviceAccess.isConnected() &&
+                deviceAccess.selectedDeviceId() == null,
+            day = day,
+            dayStartMs = dayStart,
+            dayEndMs = dayEnd,
+            dayReadings = daySeries.displayed.sortedBy(Reading::timestampMs),
+        )
+    }
+
+    private fun renderDashboard(data: DashboardData) {
+        val last = data.last
+        val weatherLocation = data.weatherLocation
         val lastSuccessMs = last?.timestampMs
-        val lastError = LoggerScheduler.lastError(this)
+        val lastError = data.lastError
         val sampleAge = lastSuccessMs?.let { System.currentTimeMillis() - it }
         status.text = when {
-            !LoggerScheduler.isEnabled(this) -> "15-minute logging disabled"
+            !data.loggingEnabled -> "15-minute logging disabled"
             lastSuccessMs != null -> {
                 val prefix = when {
                     sampleAge!! < 30L * 60L * 1000L -> "Last successful sample"
@@ -222,46 +284,40 @@ class MainActivity : ComponentActivity() {
                 }${lastError?.let { "  •  $it" }.orEmpty()}"
             }
             else -> when {
-                IndoorSourcePreference.selected(this) == IndoorSource.DEVICE_ACCESS &&
-                    DeviceAccessStore(this).isConnected() &&
-                    DeviceAccessStore(this).selectedDeviceId() == null ->
-                    "Choose a Nest thermostat in Settings"
+                data.deviceSelectionNeeded -> "Choose a Nest thermostat in Settings"
                 lastError != null -> lastError
                 else -> "Waiting for the first selected indoor sample"
             }
         }
         status.setTextColor(
             when {
-                !LoggerScheduler.isEnabled(this) -> TEXT_SECONDARY
+                !data.loggingEnabled -> TEXT_SECONDARY
                 sampleAge == null || sampleAge >= 60L * 60L * 1000L -> Color.rgb(255, 112, 96)
                 sampleAge >= 30L * 60L * 1000L -> OUTDOOR_TEMPERATURE
                 else -> ACCENT
             }
         )
-        LoggerScheduler.diagnostics(this)?.takeIf { it.isNotBlank() }?.let {
+        pendingStatus?.let {
+            status.text = it
+            pendingStatus = null
+        }
+        data.diagnostics?.takeIf { it.isNotBlank() }?.let {
             diagnostics.text = climateDiagnosticsOnly(it)
         }
 
-        val outdoorLast = recentReadings.lastOrNull { it.source == weatherLocation.readingSource }
-        val dayStart = selectedDay.atStartOfDay(zoneId).toInstant().toEpochMilli()
-        val dayEnd = selectedDay.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
-        chart.dayStartMs = dayStart
-        chart.dayEndMs = dayEnd
+        val outdoorLast = data.outdoorLast
+        chart.dayStartMs = data.dayStartMs
+        chart.dayEndMs = data.dayEndMs
         chart.useFahrenheit = useFahrenheit
         chart.outdoorSource = weatherLocation.readingSource
-        val daySeries = WidgetReadingSelection.select(
-            store.between(dayStart, dayEnd),
-            weatherLocation.readingSource,
-        ) { ThermostatSelection.matches(this, it) }
-        val dayReadings = daySeries.displayed.sortedBy(Reading::timestampMs)
-        chart.readings = dayReadings
-        updateDailySummaries(dayReadings)
-        chartDate.text = if (selectedDay == LocalDate.now(zoneId)) {
+        chart.readings = data.dayReadings
+        updateDailySummaries(data.dayReadings)
+        chartDate.text = if (data.day == LocalDate.now(zoneId)) {
             "Today"
         } else {
-            selectedDay.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+            data.day.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
         }
-        nextDayButton.visibility = if (selectedDay < LocalDate.now(zoneId)) {
+        nextDayButton.visibility = if (data.day < LocalDate.now(zoneId)) {
             View.VISIBLE
         } else {
             View.INVISIBLE
@@ -293,8 +349,7 @@ class MainActivity : ComponentActivity() {
                     DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
                         .format(Date(last.timestampMs))
                 )
-                val indoorCount = recentReadings.count { ThermostatSelection.matches(this@MainActivity, it) }
-                append("  •  $indoorCount readings")
+                append("  •  ${data.indoorCount} readings")
             }
             comfortValue.text = if (last.temperatureC != null && last.humidityPercent != null) {
                 val dewPoint = ClimateMetrics.dewPointC(last.temperatureC, last.humidityPercent)
@@ -398,6 +453,7 @@ class MainActivity : ComponentActivity() {
         .ifEmpty { "No climate-device diagnostics available yet." }
 
     private fun showSettingsMenu() {
+        if (settingsDialog?.isShowing == true) return
         val density = resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         fun rounded(color: Int, radius: Int = 18) = GradientDrawable().apply {
@@ -549,9 +605,12 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) },
         )
-        val dataSummary = "${store.count()} readings • ${formatStorageSize(store.databaseSizeBytes())} • " +
-            if (DataRetention.isOneYear(this)) "Keep 1 year" else "Keep unlimited"
-        val (dataRow, _) = clickableRow("Stored data", dataSummary)
+        val retentionLabel = if (DataRetention.isOneYear(this)) "Keep 1 year" else "Keep unlimited"
+        val (dataRow, dataValue) = clickableRow("Stored data", "Counting readings… • $retentionLabel")
+        lifecycleScope.launch {
+            val (count, size) = withContext(Dispatchers.IO) { store.count() to store.databaseSizeBytes() }
+            dataValue.text = "$count readings • ${formatStorageSize(size)} • $retentionLabel"
+        }
         panel.addView(
             dataRow,
             LinearLayout.LayoutParams(
@@ -689,6 +748,7 @@ class MainActivity : ComponentActivity() {
             addView(panel)
         }
         val dialog = AlertDialog.Builder(this).setView(settingsScroll).create()
+        settingsDialog = dialog
         val doneButton = Button(this).apply {
             text = "Done"
             isAllCaps = false
@@ -726,7 +786,7 @@ class MainActivity : ComponentActivity() {
                 .apply()
             unitsValue.text = if (useFahrenheit) "Fahrenheit (°F)" else "Celsius (°C)"
             refreshUiFromStorage()
-            ClimateWidgetProvider.updateAll(applicationContext)
+            WidgetUpdates.requestUpdateAll(applicationContext)
         }
         locationRow.setOnClickListener {
             dialog.dismiss()
@@ -986,9 +1046,8 @@ class MainActivity : ComponentActivity() {
                     lifecycleScope.launch(Dispatchers.IO) {
                         ReadingImporter.insert(this@MainActivity, store, preview.readings)
                         withContext(Dispatchers.Main) {
-                            refreshUiFromStorage()
-                            ClimateWidgetProvider.updateAll(applicationContext)
-                            status.text = "Imported ${preview.readings.size} readings"
+                            refreshUiFromStorage("Imported ${preview.readings.size} readings")
+                            WidgetUpdates.requestUpdateAll(applicationContext)
                         }
                     }
                     true
@@ -1088,15 +1147,18 @@ class MainActivity : ComponentActivity() {
 
     private fun showDataManagementDialog() {
         val retention = if (DataRetention.isOneYear(this)) "one year" else "unlimited"
-        showStyledOptionsDialog(
-            title = "Stored data",
-            message = "${store.count()} readings use ${formatStorageSize(store.databaseSizeBytes())}. Retention is $retention.",
-            options = listOf("Export all readings", "Change retention", "Delete all readings"),
-        ) { which ->
-            when (which) {
-                0 -> exportAllReadings()
-                1 -> showRetentionDialog()
-                2 -> confirmClearReadings()
+        lifecycleScope.launch {
+            val (count, size) = withContext(Dispatchers.IO) { store.count() to store.databaseSizeBytes() }
+            showStyledOptionsDialog(
+                title = "Stored data",
+                message = "$count readings use ${formatStorageSize(size)}. Retention is $retention.",
+                options = listOf("Export all readings", "Change retention", "Delete all readings"),
+            ) { which ->
+                when (which) {
+                    0 -> exportAllReadings()
+                    1 -> showRetentionDialog()
+                    2 -> confirmClearReadings()
+                }
             }
         }
     }
@@ -1124,10 +1186,11 @@ class MainActivity : ComponentActivity() {
             positiveLabel = "Delete",
             onNeutral = { exportAllReadings() },
             onPositive = {
-                store.clear()
-                refreshUiFromStorage()
-                ClimateWidgetProvider.updateAll(applicationContext)
-                status.text = "All stored readings deleted"
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { store.clear() }
+                    refreshUiFromStorage("All stored readings deleted")
+                    WidgetUpdates.requestUpdateAll(applicationContext)
+                }
                 true
             },
         )
@@ -1366,8 +1429,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showThermostatSelectionDialog() {
+        // A scan can take up to 45 seconds; repeated taps must not start parallel scans.
+        if (thermostatScan?.isActive == true) return
         status.text = "Finding compatible climate devices…"
-        lifecycleScope.launch {
+        thermostatScan = lifecycleScope.launch {
             val devices = runCatchingCancellable {
                 reader.sample().readings.distinctBy { it.deviceId ?: it.source }.sortedBy { it.source }
             }
@@ -1407,9 +1472,8 @@ class MainActivity : ComponentActivity() {
                         if (selected == 0) null else devices[selected - 1].source,
                         if (selected == 0) null else devices[selected - 1].deviceId,
                     )
-                    refreshUiFromStorage()
-                    ClimateWidgetProvider.updateAll(applicationContext)
-                    status.text = "Indoor device selection updated"
+                    refreshUiFromStorage("Indoor device selection updated")
+                    WidgetUpdates.requestUpdateAll(applicationContext)
                 }
         }
     }
@@ -1432,6 +1496,7 @@ class MainActivity : ComponentActivity() {
             val padding = (14f * resources.displayMetrics.density).toInt()
             setPadding(padding, padding, padding, padding)
         }
+        var lookup: Job? = null
         showStyledDialog(
             title = "Outdoor weather location",
             message = "Enter an address or place name. Only its coordinates are sent to the weather service.",
@@ -1444,16 +1509,16 @@ class MainActivity : ComponentActivity() {
                     input.error = "Enter an address or place"
                     return@showStyledDialog false
                 }
+                if (lookup?.isActive == true) return@showStyledDialog false
                 status.text = "Finding outdoor weather location…"
-                lifecycleScope.launch {
+                lookup = lifecycleScope.launch {
                     val location = geocodeLocation(query)
                     if (location == null) {
                         input.error = "Location not found. Add the city and province."
                         status.text = "Could not find that weather location"
                     } else {
                         WeatherLocationStore.set(this@MainActivity, location)
-                        status.text = "Outdoor weather set to ${location.label}"
-                        refreshUiFromStorage()
+                        refreshUiFromStorage("Outdoor weather set to ${location.label}")
                         dialog.dismiss()
                     }
                 }
@@ -1980,19 +2045,9 @@ class MainActivity : ComponentActivity() {
         return scrollView
     }
 
-    override fun onDestroy() {
-        store.close()
-        super.onDestroy()
-    }
-
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString(KEY_SELECTED_DAY, selectedDay.toString())
         super.onSaveInstanceState(outState)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (::store.isInitialized && ::status.isInitialized) refreshUiFromStorage()
     }
 
     private data class SummaryViews(

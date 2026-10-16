@@ -62,7 +62,7 @@ object HumidityAlerts {
     fun evaluate(context: Context, store: ReadingStore) {
         val settings = settings(context)
         if (!settings.enabled) return
-        val indoor = store.recent(200).filter { ThermostatSelection.matches(context, it) }
+        val indoor = store.recent(200).filter(ThermostatSelection.matcher(context))
             .filter { it.humidityPercent != null }
         val latest = indoor.lastOrNull() ?: return
         val state = determineState(indoor, settings)

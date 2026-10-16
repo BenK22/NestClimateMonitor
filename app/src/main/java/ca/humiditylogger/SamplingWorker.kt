@@ -23,13 +23,13 @@ class SamplingWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
-    /** Runs one request, closes its database and records elapsed runtime even on cancellation. */
+    /** Runs one request and records elapsed runtime even on cancellation. */
     override suspend fun doWork(): Result = sampleMutex.withLock {
         val force = inputData.getBoolean(KEY_FORCE, false)
         if (!shouldRun(LoggerScheduler.isEnabled(applicationContext), force)) return Result.success()
 
         val startedAt = SystemClock.elapsedRealtime()
-        val store = ReadingStore(applicationContext)
+        val store = ReadingStore.getInstance(applicationContext)
         return try {
             val deviceAccessStore = DeviceAccessStore(applicationContext)
             val indoorSource = IndoorSourcePreference.selected(applicationContext)
@@ -148,7 +148,6 @@ class SamplingWorker(
                 applicationContext,
                 SystemClock.elapsedRealtime() - startedAt,
             )
-            store.close()
         }
     }
 
