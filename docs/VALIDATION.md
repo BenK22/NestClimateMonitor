@@ -169,6 +169,32 @@ The later APK metadata opt-out was checked separately as recorded below.
   soak test. Google Home source mode, overnight sampling and the official signed APK on a phone
   were not exercised in this pass.
 
+## v0.4.3 publication checks (2026-10-16)
+
+- Before signing, `keytool` confirmed the configured key's certificate SHA-256 matched the permanent
+  `1E:4D:…:4B:BC` fingerprint; no key was generated. Signing inputs came from User-scoped variables
+  loaded into the build process only.
+- Tagged release source `3b21140` passed full-SDK `testDebugUnitTest lintDebug lintRelease
+  assembleDebug assembleRelease`: 66 JVM tests with no failures or skips, and no debug/release lint
+  errors. Existing deprecation warnings remain. Documentation (35 production Kotlin files),
+  publication/history scans and all helper tests passed.
+- `package-release.py` verified the permanent certificate, `ca.humiditylogger`, version
+  0.4.3/versionCode 7, non-debuggable state and generated license resources. Independently,
+  `apksigner` reported a single signer with the permanent SHA-256, `aapt` reported the expected
+  package/version, and the packaged VCS metadata named `3b21140` with a `$PROJECT_DIR` root.
+- Exact-source GitHub gates passed:
+  [Android verification](https://github.com/BenK22/NestClimateMonitor/actions/runs/38926214082)
+  and [publication privacy check](https://github.com/BenK22/NestClimateMonitor/actions/runs/38926213994).
+  The [tag workflow](https://github.com/BenK22/NestClimateMonitor/actions/runs/38929096590) ran its
+  configuration job and skipped build/publish because repository signing inputs are unconfigured.
+  Signing was local.
+- [v0.4.3 was published as a prerelease](https://github.com/BenK22/NestClimateMonitor/releases/tag/v0.4.3)
+  with a separate v0.4.3 publisher. Server-side asset digests were checked on upload, and both
+  assets were downloaded after publication and matched the reviewed local APK/checksum bytes.
+  APK SHA-256: `87285e9de3b021bfc0e4fc1f3ce976604d902f8eac63f32dccba907ed7fb19eb`.
+  Earlier tags, releases and assets were unchanged. The official APK was not installed on the
+  maintainer's phone, which keeps its developer-signed build.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
