@@ -15,6 +15,8 @@ object CsvExporter {
      */
     fun export(context: Context, readings: List<Reading>, name: String): File {
         val directory = File(context.cacheDir, "exports").apply { mkdirs() }
+        // Earlier exports were already handed to a share target; don't keep history copies around.
+        directory.listFiles()?.filter { it.name != name }?.forEach { it.delete() }
         val file = File(directory, name)
         file.bufferedWriter().use { writer ->
             writer.appendLine(header)

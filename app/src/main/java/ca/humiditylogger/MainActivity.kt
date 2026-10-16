@@ -2005,7 +2005,7 @@ class MainActivity : ComponentActivity() {
                 setTextColor(OUTDOOR)
                 setPadding(0, dp(14), 0, 0)
                 setOnClickListener {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://open-meteo.com/")))
+                    openInBrowser("https://open-meteo.com/")
                 }
             })
         }

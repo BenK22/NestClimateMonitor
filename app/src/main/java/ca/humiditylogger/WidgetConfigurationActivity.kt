@@ -27,7 +27,10 @@ class WidgetConfigurationActivity : Activity() {
             AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID,
         ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+        // This activity must be exported for launchers, so any app can start it: only configure
+        // widget IDs that are actually bound to one of this app's providers.
+        val owner = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.packageName
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID || owner != packageName) {
             finish()
             return
         }

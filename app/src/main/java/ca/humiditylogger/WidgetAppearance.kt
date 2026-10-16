@@ -39,7 +39,16 @@ object WidgetAppearance {
 
     /** Opens the dashboard only; clicking a widget does not request a measurement. */
     fun launchApp(context: Context): PendingIntent = PendingIntent.getActivity(
-        context, 0, Intent(context, MainActivity::class.java),
+        context, 0, dashboardIntent(context),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
+
+    /**
+     * Launcher-equivalent intent: resumes the existing task like the app icon does, instead of
+     * stacking another dashboard instance on top of it each time a widget or alert is tapped.
+     */
+    fun dashboardIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
+        .setAction(Intent.ACTION_MAIN)
+        .addCategory(Intent.CATEGORY_LAUNCHER)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 }

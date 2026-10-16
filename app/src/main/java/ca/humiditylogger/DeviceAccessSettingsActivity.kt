@@ -178,13 +178,13 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             runCatchingCancellable(::saveProjectId).onFailure(::showError)
         }
         deviceAccessConsoleLink.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DEVICE_ACCESS_CONSOLE_URL)))
+            openInBrowser(DEVICE_ACCESS_CONSOLE_URL)
         }
         saveOAuthButton.setOnClickListener {
             runCatchingCancellable(::saveOAuthCredentials).onFailure(::showError)
         }
         oauthClientsLink.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OAUTH_CLIENTS_URL)))
+            openInBrowser(OAUTH_CLIENTS_URL)
         }
         sdmApiLink.setOnClickListener { openSdmApiConsole() }
         authorizeButton.setOnClickListener {
@@ -259,8 +259,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             )
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Open Google") { _, _ ->
-                awaitingAuthorization = true
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                awaitingAuthorization = openInBrowser(url)
             }
             .show()
     }
@@ -275,7 +274,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             return
         }
         val url = "$SDM_API_CONSOLE_URL?project=${Uri.encode(projectNumber)}"
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        openInBrowser(url)
     }
 
     /** Reads clipboard only after this screen launched consent; validates before populating the field. */
@@ -291,6 +290,8 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         if (valid) {
             authorizationCode.setText(copied)
             awaitingAuthorization = false
+            // The URL carries a live authorization code; don't leave it for other apps to read.
+            runCatching { clipboard?.clearPrimaryClip() }
             status.text = "Authorization URL copied from Chrome. Tap Complete connection."
             Toast.makeText(this, "Google authorization URL imported", Toast.LENGTH_SHORT).show()
         } else {

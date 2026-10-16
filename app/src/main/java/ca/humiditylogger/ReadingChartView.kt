@@ -9,6 +9,7 @@ import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.abs
@@ -62,6 +63,10 @@ class ReadingChartView @JvmOverloads constructor(
         }
     private val density = resources.displayMetrics.density
     private var selectedTimestampMs: Long? = null
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var scrubbing = false
     private val crosshairPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(180, 220, 235, 230)
         strokeWidth = density
@@ -181,27 +186,56 @@ class ReadingChartView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Taps and horizontal drags move the crosshair. Vertical drags are left to the parent
+     * ScrollView; claiming every gesture made the page unscrollable wherever the chart was touched.
+     */
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (readings.isEmpty() || width == 0 || dayEndMs <= dayStartMs) return false
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                parent?.requestDisallowInterceptTouchEvent(true)
-                val left = 48f * density
-                val right = width - 48f * density
-                val fraction = ((event.x - left) / (right - left)).coerceIn(0f, 1f)
-                val target = dayStartMs + ((dayEndMs - dayStartMs) * fraction).toLong()
-                selectedTimestampMs = readings.minByOrNull { abs(it.timestampMs - target) }?.timestampMs
-                contentDescription = selectedTimestampMs?.let(::tooltipText)
-                invalidate()
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                downY = event.y
+                scrubbing = false
                 return true
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                parent?.requestDisallowInterceptTouchEvent(false)
+            MotionEvent.ACTION_MOVE -> {
+                if (!scrubbing) {
+                    val dx = abs(event.x - downX)
+                    if (dx < touchSlop || dx < abs(event.y - downY)) return true
+                    scrubbing = true
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                }
+                selectAt(event.x)
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                if (!scrubbing) selectAt(event.x)
+                endGesture()
                 performClick()
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                endGesture()
                 return true
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun endGesture() {
+        scrubbing = false
+        parent?.requestDisallowInterceptTouchEvent(false)
+    }
+
+    private fun selectAt(x: Float) {
+        val left = 48f * density
+        val right = width - 48f * density
+        val fraction = ((x - left) / (right - left)).coerceIn(0f, 1f)
+        val target = dayStartMs + ((dayEndMs - dayStartMs) * fraction).toLong()
+        selectedTimestampMs = readings.minByOrNull { abs(it.timestampMs - target) }?.timestampMs
+        contentDescription = selectedTimestampMs?.let(::tooltipText)
+        invalidate()
     }
 
     override fun performClick(): Boolean {

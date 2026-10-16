@@ -6,7 +6,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -80,7 +79,7 @@ object HumidityAlerts {
         val boundary = if (state == "high") settings.high else settings.low
         val message = "$humidity% for about ${settings.durationMinutes} minutes (threshold $boundary%)"
         val openApp = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java),
+            context, 0, WidgetAppearance.dashboardIntent(context),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         try {
