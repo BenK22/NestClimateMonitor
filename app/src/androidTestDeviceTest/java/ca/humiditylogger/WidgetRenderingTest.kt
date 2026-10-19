@@ -41,6 +41,30 @@ class WidgetRenderingTest {
         context.getSharedPreferences("thermostat_selection", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
+    @Test fun unknownLegendUsesOnlyRealVisibleWidgetTemperatureSamples() {
+        val now = 100_000_000L
+        val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
+        val known = Reading(now, "Synthetic", null, 20.0, null, runningState = "OFF")
+        val unknown = known.copy(timestampMs = start + 3_600_000L, runningState = null)
+        val cases = listOf(
+            listOf(known) to false,
+            listOf(unknown.copy(timestampMs = start - 1L), known) to false,
+            listOf(unknown.copy(temperatureC = null), known) to false,
+            listOf(unknown, known) to true,
+        )
+        for ((rows, expected) in cases) {
+            val bitmap = WidgetGraph.render(context, rows, 340, 140, now)
+            try {
+                // The activity legend is above the plot and below the series legend.
+                val labelSize = (bitmap.height * 0.095f).coerceIn(10f, 32f)
+                val hasUnknown = ((labelSize * 1.3f).toInt() until (labelSize * 2.5f).toInt()).any { y ->
+                    (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == HvacActivity.UNKNOWN.color }
+                }
+                assertEquals("Unknown key must ignore history outside the widget window", expected, hasUnknown)
+            } finally { bitmap.recycle() }
+        }
+    }
+
     @Test fun singleTemperatureOrHumidityIsVisibleWithoutTwoSamples() {
         val now = 100_000_000L
         val cases = listOf(

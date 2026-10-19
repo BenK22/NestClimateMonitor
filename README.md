@@ -33,6 +33,7 @@ The daily chart spans midnight through 11:59 PM in the phone's current time zone
 
 HVAC markers on indoor temperature samples show reported activity: an upward orange triangle for
 Heat, downward purple triangle for Cool, open circle for Off, and cross for unknown.
+The unknown legend entry appears only when the displayed graph contains unknown samples.
 Tap the daily graph to inspect the associated HVAC state and indoor sample time. The same markers
 appear on widget graphs; taller widgets also show the marker key. Running state is saved with each
 reading and included in CSV backups. These are sampled observations, not a continuous runtime log:

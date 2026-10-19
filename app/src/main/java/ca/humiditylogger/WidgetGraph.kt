@@ -173,12 +173,13 @@ object WidgetGraph {
         draw(outdoorTemperature, OUTDOOR_TEMP, false, dashed = true)
         draw(outdoorHumidity, OUTDOOR_HUMID, true, dashed = true)
         val activityMarkers = HvacMarkerPainter((width / 180f).coerceIn(2.5f, 6f))
+        val activitySamples = HvacHistory.samples(series.indoor, start, now + 1L)
         if (showActivityLegend) {
-            activityMarkers.drawLegend(canvas, textPaint, left, right, labelSize * 2.3f)
+            activityMarkers.drawLegend(canvas, textPaint, left, right, labelSize * 2.3f, activitySamples)
         }
         // The clipped temperature line may include an interpolated boundary, but HVAC
         // markers must only appear on actual in-window samples, never on that synthetic point.
-        HvacHistory.samples(series.indoor, start, now + 1L).forEach { sample ->
+        activitySamples.forEach { sample ->
             val x = left + (sample.timestampMs - start).toFloat() / windowMs * (right - left)
             val fraction = (displayTemp(sample.temperatureC) - tempMin) / (tempMax - tempMin)
             val y = bottom - fraction.toFloat().coerceIn(0f, 1f) * (bottom - top)

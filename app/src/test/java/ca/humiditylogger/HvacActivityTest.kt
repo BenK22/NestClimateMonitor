@@ -5,6 +5,23 @@ import org.junit.Test
 
 /** Snapshot semantics must not turn selected modes or absent provider values into runtime history. */
 class HvacActivityTest {
+    @Test fun legendOmitsUnknownForEmptyAndFullyReportedPlots() {
+        val known = listOf(HvacActivity.HEATING, HvacActivity.COOLING, HvacActivity.IDLE)
+        assertEquals(known, HvacHistory.legendStates(emptyList()))
+        assertEquals(known, HvacHistory.legendStates(
+            HvacHistory.samples(listOf(reading(10, "HEATING"), reading(20, "OFF")), 0, 30)))
+    }
+
+    @Test fun unknownLegendDependsOnlyOnActualVisibleTemperatureSamples() {
+        val rows = listOf(reading(9, null), reading(10, "OFF"), reading(20, null),
+            reading(12, null).copy(source = WeatherClient.SOURCE_PREFIX + "Synthetic"),
+            reading(13, null).copy(temperatureC = null))
+        val known = listOf(HvacActivity.HEATING, HvacActivity.COOLING, HvacActivity.IDLE)
+        assertEquals(known, HvacHistory.legendStates(HvacHistory.samples(rows, 10, 20)))
+        assertEquals(HvacActivity.entries.toList(),
+            HvacHistory.legendStates(HvacHistory.samples(rows, 10, 21)))
+    }
+
     @Test fun displayedActivityUsesSimpleHeatCoolOffLabels() {
         val known = listOf(HvacActivity.HEATING, HvacActivity.COOLING, HvacActivity.IDLE)
         assertEquals(listOf("Heat", "Cool", "Off"), known.map { it.label })

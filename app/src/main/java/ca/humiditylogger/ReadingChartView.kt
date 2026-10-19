@@ -165,8 +165,9 @@ class ReadingChartView @JvmOverloads constructor(
         }
 
         val activityMarkers = HvacMarkerPainter(2.5f * density)
-        activityMarkers.drawLegend(canvas, textPaint, left, right, 11f * density)
-        HvacHistory.samples(readings, dayStartMs, dayEndMs).forEach { sample ->
+        val activitySamples = HvacHistory.samples(readings, dayStartMs, dayEndMs)
+        activityMarkers.drawLegend(canvas, textPaint, left, right, 11f * density, activitySamples)
+        activitySamples.forEach { sample ->
             val x = left + (right - left) * ((sample.timestampMs - dayStartMs).toDouble() /
                 (dayEndMs - dayStartMs)).toFloat()
             val y = bottom - (bottom - top) * ((sample.temperatureC - tempMin) /

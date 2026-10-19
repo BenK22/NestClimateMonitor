@@ -8,6 +8,7 @@ import android.view.View
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,6 +18,35 @@ import kotlin.math.roundToInt
 @RunWith(AndroidJUnit4::class)
 class HvacChartTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    @Test fun dailyUnknownLegendTracksVisibleTemperatureSamples() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val known = Reading(10_000L, "Synthetic", "device", 20.0, null, runningState = "OFF")
+            val unknown = known.copy(timestampMs = 20_000L, runningState = null)
+            val cases = listOf(
+                listOf(known) to false,
+                listOf(unknown.copy(timestampMs = -1L), known) to false,
+                listOf(known, unknown.copy(temperatureC = null)) to false,
+                listOf(known, unknown) to true,
+            )
+            val chart = ReadingChartView(context).apply { dayStartMs = 0; dayEndMs = 50_000 }
+            chart.measure(View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(700, View.MeasureSpec.EXACTLY))
+            chart.layout(0, 0, 1000, 700)
+            for ((rows, expected) in cases) {
+                chart.readings = rows
+                val bitmap = Bitmap.createBitmap(1000, 700, Bitmap.Config.ARGB_8888)
+                try {
+                    chart.draw(Canvas(bitmap))
+                    val legendBottom = (25f * context.resources.displayMetrics.density).toInt()
+                    val hasUnknown = (0 until legendBottom).any { y ->
+                        (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == HvacActivity.UNKNOWN.color }
+                    }
+                    assertEquals("Unknown key must follow the displayed samples", expected, hasUnknown)
+                } finally { bitmap.recycle() }
+            }
+        }
+    }
 
     @Test fun dailyGraphDrawsAllActivityShapesAndExposesSampleStateOnTap() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {

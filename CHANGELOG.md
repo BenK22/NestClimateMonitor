@@ -6,6 +6,7 @@
   activity on daily and widget graphs; show sample HVAC state/time when inspecting daily history.
 - Retain existing running-state storage and CSV backups; markers do not infer cycle transitions
   or runtime between samples, and unsupported/older missing state stays unknown.
+- Show the unknown HVAC legend entry only when actual displayed samples have unknown activity.
 
 ## 0.4.3
 

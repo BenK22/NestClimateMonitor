@@ -25,6 +25,12 @@ data class HvacSample(val timestampMs: Long, val temperatureC: Double, val activ
 
 /** Produces discrete markers only: no interpolation, carry-forward, or cycle-duration estimation. */
 object HvacHistory {
+    /** The unknown key is useful only if an actual plotted sample needs it. */
+    fun legendStates(samples: List<HvacSample>): List<HvacActivity> =
+        HvacActivity.entries.filter { state ->
+            state != HvacActivity.UNKNOWN || samples.any { it.activity == HvacActivity.UNKNOWN }
+        }
+
     /** Caller selects the thermostat; weather, invalid temperatures and out-of-window rows are excluded. */
     fun samples(readings: List<Reading>, startMs: Long, endExclusiveMs: Long): List<HvacSample> =
         readings.mapNotNull { reading ->

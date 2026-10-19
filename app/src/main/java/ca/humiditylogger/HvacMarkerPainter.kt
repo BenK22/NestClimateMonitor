@@ -41,9 +41,10 @@ internal class HvacMarkerPainter(private val radius: Float) {
         }
     }
 
-    /** Draws the actual sample symbols with short labels when all four fit, including in landscape. */
-    fun drawLegend(canvas: Canvas, text: Paint, left: Float, right: Float, baseline: Float) {
-        val states = HvacActivity.entries
+    /** Draws known keys plus unknown only when plotted samples need it, if the labels fit. */
+    fun drawLegend(canvas: Canvas, text: Paint, left: Float, right: Float, baseline: Float,
+        samples: List<HvacSample>) {
+        val states = HvacHistory.legendStates(samples)
         val slot = (right - left) / states.size
         if (states.any { text.measureText(it.legend) + radius * 4f > slot }) return
         states.forEachIndexed { index, activity ->
