@@ -1917,7 +1917,24 @@ class MainActivity : ComponentActivity() {
             addView(legendRow("Inside", TEMPERATURE, HUMIDITY, dashed = false))
             addView(legendRow("Outside", OUTDOOR_TEMPERATURE, OUTDOOR, dashed = true))
             addView(TextView(this@MainActivity).apply {
-                text = "HVAC markers show the reported state at each indoor temperature sample. " +
+                text = "Background · selected mode"
+                textSize = 11f
+                setTextColor(TEXT_SECONDARY)
+                setPadding(0, dp(8), 0, dp(3))
+            })
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                ThermostatMode.entries.filter { it != ThermostatMode.UNKNOWN }.forEach { mode ->
+                    addView(TextView(this@MainActivity).apply {
+                        text = "■ ${mode.label}"
+                        textSize = 11f
+                        setTextColor(mode.color)
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                }
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = "Shading shows the last observed mode for up to 30 minutes; gaps stay unshaded. " +
+                    "HVAC markers show equipment activity at each indoor temperature sample. " +
                     "Tap the graph for details. " +
                     "Short cycles between samples may be missed."
                 textSize = 11f

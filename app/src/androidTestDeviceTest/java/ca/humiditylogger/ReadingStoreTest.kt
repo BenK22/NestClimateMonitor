@@ -57,6 +57,16 @@ class ReadingStoreTest {
         assertEquals(rows, store.between(1_000L, 2_000L))
     }
 
+    @Test fun selectedModeHistorySurvivesDatabaseAndRangeQueries() {
+        val rows = listOf("HEAT", "COOL", "HEATCOOL", "OFF", "FutureMode", null)
+            .mapIndexed { index, mode ->
+                Reading(1_000L + index, "Synthetic", "id", 20.0, 45.0,
+                    systemMode = mode, runningState = "OFF")
+            }
+        store.insertAll(rows)
+        assertEquals(rows, store.between(1_000L, 2_000L))
+    }
+
     @Test fun widgetHistoryKeepsEveryRowInTheWindowEvenAboveFourHundred() {
         val now = 100_000_000L
         val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
@@ -68,7 +78,9 @@ class ReadingStoreTest {
             Reading(start - 2, "Old", "id", 19.0, 39.0),
             Reading(start - 1, "Old", "id", null, null),
         ))
-        assertEquals(listOf(predecessor) + rows + Reading(now, "Boundary", "id", 22.0, 42.0), store.widgetHistory(now))
+        val metadata = Reading(start - 1, "Old", "id", null, null)
+        assertEquals(listOf(predecessor, metadata) + rows + Reading(now, "Boundary", "id", 22.0, 42.0),
+            store.widgetHistory(now))
     }
 
     @Test fun widgetHistoryKeepsPredecessorsPerTraitAndSourceDeviceIdentity() {
@@ -86,8 +98,23 @@ class ReadingStoreTest {
             Reading(start - 1, "Synthetic", "id-a", null, null),
             Reading(start - 30, "Synthetic", "id-a", 17.0, 35.0),
         ))
-        assertEquals(listOf(temperature, humidity, otherDevice, outdoorTemperature, outdoorHumidity, inside),
+        val metadata = Reading(start - 1, "Synthetic", "id-a", null, null)
+        assertEquals(listOf(temperature, humidity, otherDevice, outdoorTemperature, outdoorHumidity, metadata, inside),
             store.widgetHistory(now))
+    }
+
+    @Test fun widgetBoundaryRetainsMissingModeMetadataInsteadOfCarryingAnOlderMode() {
+        val now = 100_000_000L
+        val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
+        val prior = Reading(start - 60_000L, "Synthetic", "id", 20.0, 45.0, systemMode = "HEAT")
+        val missing = Reading(start - 30_000L, "Synthetic", "id", null, null, systemMode = null)
+        val current = Reading(start + 60_000L, "Synthetic", "id", 20.0, 45.0, systemMode = "COOL")
+        store.insertAll(listOf(prior, missing, current))
+        val history = store.widgetHistory(now)
+        assertEquals(listOf(prior, missing, current), history)
+        assertEquals(listOf(ThermostatModeBand(current.timestampMs,
+            current.timestampMs + ThermostatModeHistory.MAX_HOLD_MS, ThermostatMode.COOL)),
+            ThermostatModeHistory.bands(history, start, now))
     }
 
     @Test fun bulkInsertAndDeleteBeforeAreTransactional() {

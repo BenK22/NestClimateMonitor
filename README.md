@@ -39,6 +39,14 @@ appear on widget graphs; taller widgets also show the marker key. Running state 
 reading and included in CSV backups. These are sampled observations, not a continuous runtime log:
 short heating/cooling cycles between samples may be missed. Missing state is never assumed off.
 
+Subtle graph backgrounds show the **selected thermostat mode**, separately from equipment activity:
+warm/orange for Heat, blue for Cool, purple for Heat/Cool, and grey for Off. This uses the mode already
+saved with past readings; it cannot recover modes that were never recorded. Each band holds the last
+observed mode until the next sample, for at most 30 minutes, and never extends into future time.
+Missing/unsupported modes and longer gaps remain unshaded. Tap daily history to see the sampled mode.
+Mode names follow [Nest's mode trait](https://developers.google.com/nest/device-access/traits/device/thermostat-mode);
+Google Home's Auto mode is displayed as Heat/Cool.
+
 Outdoor weather data is provided by [Open-Meteo](https://open-meteo.com/) under CC BY 4.0. The free endpoint is intended for non-commercial use; review Open-Meteo's current terms before distributing a commercial build.
 
 ## Screenshots

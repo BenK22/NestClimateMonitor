@@ -41,6 +41,37 @@ class WidgetRenderingTest {
         context.getSharedPreferences("thermostat_selection", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
+    @Test fun widgetBackgroundUsesSavedModeRatherThanRunningActivity() {
+        val now = 100_000_000L
+        val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
+        val modes = listOf("HEAT", "COOL", "HEATCOOL", "OFF", null)
+        for (raw in modes) {
+            val rows = listOf(Reading(start, "Synthetic", null, 20.0, null,
+                systemMode = raw, runningState = "HEATING"))
+            val bitmap = WidgetGraph.render(context, rows, 340, 140, now)
+            try {
+                val mode = ThermostatMode.fromReported(raw)
+                val labelSize = (bitmap.height * 0.095f).coerceIn(10f, 32f)
+                val y = (labelSize * 3f + 20f).toInt()
+                // First 30 minutes are shaded; two hours after the sample must be transparent.
+                val axisText = android.graphics.Paint().apply {
+                    textSize = labelSize
+                    typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                }
+                val left = kotlin.math.ceil(axisText.measureText("100°") + 12f)
+                val right = kotlin.math.floor(bitmap.width - axisText.measureText("100%") - 12f)
+                val x = (left + (right - left) / 24f).toInt() // Fifteen minutes into the six-hour window.
+                val pixel = bitmap.getPixel(x, y)
+                if (mode == ThermostatMode.UNKNOWN) assertEquals(0, Color.alpha(pixel))
+                else {
+                    assertEquals(38, Color.alpha(pixel))
+                    assertTrue(Color.red(pixel) > 0 && Color.green(pixel) > 0)
+                }
+                assertEquals(0, Color.alpha(bitmap.getPixel(bitmap.width / 2, y)))
+            } finally { bitmap.recycle() }
+        }
+    }
+
     @Test fun unknownLegendUsesOnlyRealVisibleWidgetTemperatureSamples() {
         val now = 100_000_000L
         val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS

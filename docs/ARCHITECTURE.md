@@ -125,6 +125,11 @@ with diagnostics. Missing exposed traits are not inferred from another device.
   exact heating/cooling cycles. Unknown values remain unknown and raw stored/CSV values survive.
   Daily tooltips include the associated indoor sample time; marker shapes distinguish heating,
   cooling, off and unknown without relying on color. Large widgets include the same marker key.
+- `ThermostatModeHistory` reads the separate saved `systemMode`, not `runningState`, for subtle
+  daily/widget plot backgrounds. SDM HEATCOOL and Home Auto normalize to Heat/Cool; unsupported
+  values stay unknown. A band holds a sampled mode until the next snapshot, capped at two requested
+  intervals (30 minutes). Null/unsupported snapshots interrupt it, and renderers cap at now. These
+  bounded last-observed intervals are not exact change times or a reconstruction of missing history.
 - Schema version 3 uses additive migrations: version 2 added thermostat metadata, version 3 added
   device identity. Future migrations must preserve existing history; bump the version and test
   upgrading old schemas instead of dropping/recreating tables.

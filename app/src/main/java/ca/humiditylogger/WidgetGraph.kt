@@ -74,6 +74,8 @@ object WidgetGraph {
             WeatherLocationStore.get(context).readingSource,
             ThermostatSelection.matcher(context),
         )
+        ThermostatModePainter.draw(canvas, ThermostatModeHistory.bands(series.indoor, start, now),
+            start, now, left, right, top, bottom)
         val indoorTemperature = WidgetGraphWindow.points(series.indoor, start, now) { it.temperatureC }
         val indoorHumidity = WidgetGraphWindow.points(series.indoor, start, now) { it.humidityPercent }
         val outdoorTemperature = WidgetGraphWindow.points(series.outdoor, start, now) { it.temperatureC }

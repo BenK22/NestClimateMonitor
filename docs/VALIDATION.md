@@ -214,6 +214,22 @@ The later APK metadata opt-out was checked separately as recorded below.
   new overnight timing validation is claimed. This feature has not been published as an APK
   release; the existing v0.4.3 release assets remain unchanged.
 
+## Unreleased legend/mode shading follow-up (2026-10-19)
+
+- The conditional unknown-activity legend passed 75 JVM and 22 isolated phone tests before
+  selected-mode shading was added. The final combined full-SDK build passed 82 JVM tests,
+  26 isolated Pixel 9a device tests, debug lint and debug assembly. All 27 helper tests and
+  documentation coverage (39 production Kotlin files) passed as well.
+- Regression tests cover conditional unknown keys in both renderers, mode normalization,
+  distinction from running activity, raw database/CSV round trips, bounded last-observed bands,
+  missing modes, duplicate timestamps, window clipping and metadata-only widget predecessors.
+  Synthetic output for all four known mode colours plus unshaded unknown history was visually
+  reviewed. The isolated preview-test packages were removed afterwards.
+- The combined development update was installed in place after verifying its compatible signer.
+  Reading count, all six preference files and the saved Nest connection were unchanged. Mode
+  shading uses existing history without migration or new sampling. The 30-minute shading cap
+  is a presentation rule, not a claim of exact mode-change times. No release assets were changed.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official

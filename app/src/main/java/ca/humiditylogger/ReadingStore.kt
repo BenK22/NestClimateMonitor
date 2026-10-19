@@ -109,10 +109,11 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
     )
 
     /**
-     * Full six-hour widget history plus each stream's last earlier temperature/humidity sample.
+     * Full six-hour widget history plus each stream's last earlier temperature/humidity and snapshot.
      *
      * Predecessors let the renderer clip a crossing segment at the left edge. Metadata-only
-     * rows cannot hide an earlier measurement, and old-only streams must not be extrapolated.
+     * rows cannot hide an earlier measurement. The latest snapshot also preserves missing/changed
+     * mode metadata at the boundary, and old-only measurement streams must not be extrapolated.
      * Source/device grouping preserves selection boundaries; no full-history list is allocated.
      */
     fun widgetHistory(nowMs: Long): List<Reading> {
@@ -124,16 +125,18 @@ class ReadingStore(context: Context, private val databaseName: String = "reading
                         ${predecessorIds("temperature_c")}
                         UNION
                         ${predecessorIds("humidity_percent")}
+                        UNION
+                        ${predecessorIds("id")}
                     )
                 )
             """.trimIndent(),
-            selectionArgs = arrayOf(nowMs.toString(), start.toString(), start.toString(), start.toString()),
+            selectionArgs = arrayOf(nowMs.toString(), start.toString(), start.toString(), start.toString(), start.toString()),
             orderBy = "timestamp_ms ASC, id ASC",
             limit = null,
         )
     }
 
-    // Only the two hard-coded measurement columns above enter this SQL fragment. Timestamp
+    // Only the hard-coded measurement/id columns above enter this SQL fragment. Timestamp
     // chooses the latest sample even after out-of-order imports; id resolves equal-time ties.
     private fun predecessorIds(column: String): String = """
         SELECT MAX(candidate.id)

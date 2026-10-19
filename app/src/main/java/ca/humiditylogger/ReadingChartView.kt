@@ -121,6 +121,9 @@ class ReadingChartView @JvmOverloads constructor(
         val bottom = height - 34f * density
         if (right <= left || bottom <= top || dayEndMs <= dayStartMs) return
 
+        val modeBands = ThermostatModeHistory.bands(readings, dayStartMs, minOf(dayEndMs, System.currentTimeMillis()))
+        ThermostatModePainter.draw(canvas, modeBands, dayStartMs, dayEndMs, left, right, top, bottom)
+
         val temperatures = readings.mapNotNull { it.temperatureC }
         val tempMin = (temperatures.minOrNull() ?: 10.0) - 1.0
         val tempMax = max(tempMin + 3.0, (temperatures.maxOrNull() ?: 25.0) + 1.0)
@@ -283,7 +286,8 @@ class ReadingChartView @JvmOverloads constructor(
             "Inside ${temp(inside?.temperatureC)}  ${humid(inside?.humidityPercent)}\n" +
             "Outside ${temp(outside?.temperatureC)}  ${humid(outside?.humidityPercent)}\n" +
             "HVAC: ${HvacActivity.fromReported(inside?.runningState).label}" +
-            (inside?.let { " @ ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it.timestampMs))}" } ?: "")
+            (inside?.let { " @ ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it.timestampMs))}" } ?: "") +
+            "\nMode: ${ThermostatMode.fromReported(inside?.systemMode).label}"
     }
 
     private fun drawSeries(

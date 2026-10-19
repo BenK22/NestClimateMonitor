@@ -3,6 +3,7 @@ package ca.humiditylogger
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.view.MotionEvent
 import android.view.View
 import androidx.test.core.app.ApplicationProvider
@@ -18,6 +19,49 @@ import kotlin.math.roundToInt
 @RunWith(AndroidJUnit4::class)
 class HvacChartTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    @Test fun dailyBackgroundUsesSelectedModesAndLeavesMissingHistoryUnshaded() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val interval = 600_000L
+            val modes = listOf("HEAT", "COOL", "HEATCOOL", "OFF", null)
+            val chart = ReadingChartView(context).apply {
+                dayStartMs = 0
+                dayEndMs = interval * 6
+                readings = modes.mapIndexed { index, mode ->
+                    Reading(index * interval, "Synthetic", "device", 20.0, null,
+                        systemMode = mode, runningState = "OFF")
+                }
+                useFahrenheit = false
+            }
+            chart.measure(View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(700, View.MeasureSpec.EXACTLY))
+            chart.layout(0, 0, 1000, 700)
+            val bitmap = Bitmap.createBitmap(1000, 700, Bitmap.Config.ARGB_8888)
+            val reference = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            try {
+                chart.draw(Canvas(bitmap))
+                java.io.File(context.getExternalFilesDir(null), "mode-background-test.png").outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                val density = context.resources.displayMetrics.density
+                val left = 48f * density
+                val right = 1000 - left
+                val y = (35f * density).roundToInt() // Below the top grid, above all paths.
+                modes.forEachIndexed { index, raw ->
+                    reference.eraseColor(Color.rgb(18, 27, 25))
+                    val mode = ThermostatMode.fromReported(raw)
+                    if (mode != ThermostatMode.UNKNOWN) Canvas(reference).drawColor(
+                        Color.argb(38, Color.red(mode.color), Color.green(mode.color), Color.blue(mode.color)))
+                    val x = (left + (right - left) * (index + 0.5f) / 6f).roundToInt()
+                    assertEquals("Wrong background for ${mode.label}", reference.getPixel(0, 0), bitmap.getPixel(x, y))
+                    val event = MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP,
+                        left + (right - left) * index / 6f, y.toFloat(), 0)
+                    try { chart.onTouchEvent(event) } finally { event.recycle() }
+                    assertTrue(chart.contentDescription.toString().contains("Mode: ${mode.label}"))
+                }
+            } finally { bitmap.recycle(); reference.recycle() }
+        }
+    }
 
     @Test fun dailyUnknownLegendTracksVisibleTemperatureSamples() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
