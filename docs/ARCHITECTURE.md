@@ -118,6 +118,13 @@ with diagnostics. Missing exposed traits are not inferred from another device.
 - Ambient temperatures and setpoints remain Celsius in adapters, SQLite and CSV. Fahrenheit is
   presentation-only. Humidity is percent, not a fraction; Home SDK hundredths are divided by 100.
 - Null means absent/unsupported, never zero. Status strings are provider-specific snapshots.
+- `runningState` is already stored/exported with each reading. `HvacActivity` normalizes known
+  reported running values (not `systemMode`) for graph markers. `HvacHistory` emits markers only
+  for actual finite indoor temperature samples within the displayed time window. It never
+  interpolates state at a clipped graph boundary, carries state across gaps, or reconstructs
+  exact heating/cooling cycles. Unknown values remain unknown and raw stored/CSV values survive.
+  Daily tooltips include the associated indoor sample time; marker shapes distinguish heating,
+  cooling, idle and unknown without relying on color. Large widgets include the same marker key.
 - Schema version 3 uses additive migrations: version 2 added thermostat metadata, version 3 added
   device identity. Future migrations must preserve existing history; bump the version and test
   upgrading old schemas instead of dropping/recreating tables.

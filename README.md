@@ -31,6 +31,13 @@ Opening or returning to the app does not request a sample. Readings are requeste
 
 The daily chart spans midnight through 11:59 PM in the phone's current time zone. Solid lines are readings from the selected indoor source (Nest Device Access or Google Home), and dashed lines are outdoor weather-model readings. Previous and Next navigate among calendar days; Next is hidden on the current day. The outdoor location is selectable in the app, with St. Catharines, Ontario as the non-personal default. Android geocodes the entered place, and only the resulting coordinates are sent to Open-Meteo; Google Home data is never transmitted.
 
+HVAC markers on indoor temperature samples show reported activity: an upward orange triangle for
+heating, downward purple triangle for cooling, open circle for idle/off, and cross for unknown.
+Tap the daily graph to inspect the associated HVAC state and indoor sample time. The same markers
+appear on widget graphs; taller widgets also show the marker key. Running state is saved with each
+reading and included in CSV backups. These are sampled observations, not a continuous runtime log:
+short heating/cooling cycles between samples may be missed. Missing state is never assumed off.
+
 Outdoor weather data is provided by [Open-Meteo](https://open-meteo.com/) under CC BY 4.0. The free endpoint is intended for non-commercial use; review Open-Meteo's current terms before distributing a commercial build.
 
 ## Screenshots

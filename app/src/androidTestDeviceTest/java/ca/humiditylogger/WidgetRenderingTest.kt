@@ -44,13 +44,16 @@ class WidgetRenderingTest {
     @Test fun singleTemperatureOrHumidityIsVisibleWithoutTwoSamples() {
         val now = 100_000_000L
         val cases = listOf(
-            Reading(now - 3_600_000L, "Synthetic", null, 20.0, null) to Color.rgb(255, 133, 112),
+            Reading(now - 3_600_000L, "Synthetic", null, 20.0, null) to HvacActivity.UNKNOWN.color,
+            Reading(now - 3_600_000L, "Synthetic", null, 20.0, null,
+                runningState = "HEATING") to HvacActivity.HEATING.color,
             Reading(now - 3_600_000L, "Synthetic", null, null, 45.0) to Color.rgb(86, 190, 255),
         )
         for ((reading, expected) in cases) {
             val bitmap = WidgetGraph.render(context, listOf(reading), 280, 140, now)
             try {
-                // Exclude the colored legend; require an actual plotted measurement.
+                // Exclude both legends; a temperature sample is now its HVAC symbol,
+                // while a humidity-only sample retains the original humidity dot.
                 var found = false
                 for (y in bitmap.height / 3 until bitmap.height * 4 / 5) {
                     for (x in bitmap.width / 5 until bitmap.width * 9 / 10) {
@@ -60,6 +63,26 @@ class WidgetRenderingTest {
                 assertTrue("Single measurement is missing from the plot", found)
             } finally { bitmap.recycle() }
         }
+    }
+
+    @Test fun hvacMarkersUseOnlyRealSamplesNotTheInterpolatedWindowBoundary() {
+        val now = 100_000_000L
+        val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS
+        val rows = listOf(
+            Reading(start - 1000, "Synthetic", null, 20.0, null, runningState = "HEATING"),
+            Reading(start + 3_600_000L, "Synthetic", null, 20.0, null, runningState = "COOLING"),
+            Reading(now, "Synthetic", null, 20.0, null, runningState = "OFF"),
+        )
+        val bitmap = WidgetGraph.render(context, rows, 340, 140, now)
+        try {
+            // Skip both legend rows. A crossing temperature segment is not an HVAC sample.
+            fun hasPlotColor(color: Int): Boolean = (0 until bitmap.width).any { x ->
+                (bitmap.height / 3 until bitmap.height * 9 / 10).any { y -> bitmap.getPixel(x, y) == color }
+            }
+            assertEquals(false, hasPlotColor(HvacActivity.HEATING.color))
+            assertTrue(hasPlotColor(HvacActivity.COOLING.color))
+            assertTrue(hasPlotColor(HvacActivity.IDLE.color))
+        } finally { bitmap.recycle() }
     }
 
     @Test fun crossingHistoryReachesTheLeftPlotEdgeButStaleOnlyHistoryDoesNot() {

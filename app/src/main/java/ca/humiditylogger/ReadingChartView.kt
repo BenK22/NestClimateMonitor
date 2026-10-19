@@ -20,7 +20,8 @@ import kotlin.math.max
  *
  * The activity supplies chronological, already-selected history and local-day epoch boundaries.
  * Indoor paths are solid and outdoor paths dashed. Missing values break daily paths; elapsed
- * sampling gaps alone do not. Touch selects nearby stored rows, never triggers a refresh.
+ * sampling gaps alone do not. HVAC markers use actual indoor temperature samples only.
+ * Touch selects nearby stored rows, never triggers a refresh.
  */
 class ReadingChartView @JvmOverloads constructor(
     context: Context,
@@ -163,6 +164,16 @@ class ReadingChartView @JvmOverloads constructor(
             it.temperatureC?.let { value -> (value - tempMin) / (tempMax - tempMin) }
         }
 
+        val activityMarkers = HvacMarkerPainter(2.5f * density)
+        activityMarkers.drawLegend(canvas, textPaint, left, right, 11f * density)
+        HvacHistory.samples(readings, dayStartMs, dayEndMs).forEach { sample ->
+            val x = left + (right - left) * ((sample.timestampMs - dayStartMs).toDouble() /
+                (dayEndMs - dayStartMs)).toFloat()
+            val y = bottom - (bottom - top) * ((sample.temperatureC - tempMin) /
+                (tempMax - tempMin)).coerceIn(0.0, 1.0).toFloat()
+            activityMarkers.draw(canvas, x, y, sample.activity)
+        }
+
         selectedTimestampMs?.let { selected ->
             val x = left + (right - left) * ((selected - dayStartMs).toDouble() /
                 (dayEndMs - dayStartMs)).coerceIn(0.0, 1.0).toFloat()
@@ -269,7 +280,9 @@ class ReadingChartView @JvmOverloads constructor(
         val outside = nearest(true)
         return "${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(selected))}\n" +
             "Inside ${temp(inside?.temperatureC)}  ${humid(inside?.humidityPercent)}\n" +
-            "Outside ${temp(outside?.temperatureC)}  ${humid(outside?.humidityPercent)}"
+            "Outside ${temp(outside?.temperatureC)}  ${humid(outside?.humidityPercent)}\n" +
+            "HVAC: ${HvacActivity.fromReported(inside?.runningState).label}" +
+            (inside?.let { " @ ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it.timestampMs))}" } ?: "")
     }
 
     private fun drawSeries(

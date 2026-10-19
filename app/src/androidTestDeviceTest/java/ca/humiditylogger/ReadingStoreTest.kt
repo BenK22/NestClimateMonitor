@@ -48,6 +48,15 @@ class ReadingStoreTest {
         assertEquals(emptyList<Reading>(), store.between(1_001, 2_000))
     }
 
+    @Test fun runningStateHistoryRoundTripsWithoutTurningUnknownIntoOff() {
+        val rows = listOf("HEATING", "COOLING", "OFF", "IDLE", "FutureValue", null)
+            .mapIndexed { index, state ->
+                Reading(1_000L + index, "Synthetic", "id", 20.0, 45.0, runningState = state)
+            }
+        store.insertAll(rows)
+        assertEquals(rows, store.between(1_000L, 2_000L))
+    }
+
     @Test fun widgetHistoryKeepsEveryRowInTheWindowEvenAboveFourHundred() {
         val now = 100_000_000L
         val start = now - WidgetReadingSelection.GRAPH_WINDOW_MS

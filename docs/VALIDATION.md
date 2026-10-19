@@ -195,6 +195,25 @@ The later APK metadata opt-out was checked separately as recorded below.
   Earlier tags, releases and assets were unchanged. The official APK was not installed on the
   maintainer's phone, which keeps its developer-signed build.
 
+## Unreleased HVAC sample markers (2026-10-19)
+
+- Full Google Home SDK mode passed `testDebugUnitTest lintDebug assembleDebug
+  connectedDeviceTestAndroidTest`: 72 JVM tests, 20 isolated device tests on the Pixel 9a
+  (Android 17), and no lint errors. All 27 Python helper tests and production Kotlin
+  documentation coverage (37 files) also passed.
+- Tests cover reported-state normalization, unknown states, raw-state database/CSV round trips,
+  actual-sample-only markers, widget boundary clipping and tooltip timestamps. Two initial
+  widget-test failures led to updating the single-point expectation and thickening the idle
+  marker stroke; the complete device suite then passed. Synthetic chart output was visually
+  reviewed, and the temporary test applications were removed.
+- After verifying identical developer signing certificates, the tested development APK updated
+  the maintainer's app in place. The complete reading count, all six saved preference files and
+  encrypted Nest connection were unchanged. The live dashboard showed HVAC markers on saved
+  indoor temperature samples. No manual refresh, uninstall or scheduling change was performed.
+- These are sampled HVAC states, not continuous cycle measurements. No runtime estimate or
+  new overnight timing validation is claimed. This feature has not been published as an APK
+  release; the existing v0.4.3 release assets remain unchanged.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
