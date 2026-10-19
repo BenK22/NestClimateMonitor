@@ -5,6 +5,13 @@ import org.junit.Test
 
 /** Snapshot semantics must not turn selected modes or absent provider values into runtime history. */
 class HvacActivityTest {
+    @Test fun displayedActivityUsesSimpleHeatCoolOffLabels() {
+        val known = listOf(HvacActivity.HEATING, HvacActivity.COOLING, HvacActivity.IDLE)
+        assertEquals(listOf("Heat", "Cool", "Off"), known.map { it.label })
+        assertEquals(listOf("Heat", "Cool", "Off"), known.map { it.legend })
+        assertEquals("Unknown (not reported)", HvacActivity.UNKNOWN.label)
+    }
+
     @Test fun mapsSdmAndHomeRunningValuesWithoutCaseOrWhitespaceAssumptions() {
         for (value in listOf("HEATING", "Heat", " heating ")) {
             assertEquals(HvacActivity.HEATING, HvacActivity.fromReported(value))

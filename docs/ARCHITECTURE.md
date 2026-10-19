@@ -124,7 +124,7 @@ with diagnostics. Missing exposed traits are not inferred from another device.
   interpolates state at a clipped graph boundary, carries state across gaps, or reconstructs
   exact heating/cooling cycles. Unknown values remain unknown and raw stored/CSV values survive.
   Daily tooltips include the associated indoor sample time; marker shapes distinguish heating,
-  cooling, idle and unknown without relying on color. Large widgets include the same marker key.
+  cooling, off and unknown without relying on color. Large widgets include the same marker key.
 - Schema version 3 uses additive migrations: version 2 added thermostat metadata, version 3 added
   device identity. Future migrations must preserve existing history; bump the version and test
   upgrading old schemas instead of dropping/recreating tables.

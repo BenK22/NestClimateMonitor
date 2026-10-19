@@ -1917,8 +1917,8 @@ class MainActivity : ComponentActivity() {
             addView(legendRow("Inside", TEMPERATURE, HUMIDITY, dashed = false))
             addView(legendRow("Outside", OUTDOOR_TEMPERATURE, OUTDOOR, dashed = true))
             addView(TextView(this@MainActivity).apply {
-                text = "HVAC markers at each indoor temperature sample: Heat/Cool = on, " +
-                    "Idle = off, ? = unknown. Tap the graph for details. " +
+                text = "HVAC markers at each indoor temperature sample: Heat, Cool, " +
+                    "Off, ? = unknown. Tap the graph for details. " +
                     "Short cycles between samples may be missed."
                 textSize = 11f
                 setTextColor(TEXT_SECONDARY)

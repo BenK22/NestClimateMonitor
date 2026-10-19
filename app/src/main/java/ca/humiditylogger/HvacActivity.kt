@@ -4,9 +4,9 @@ import java.util.Locale
 
 /** Reported HVAC activity at collection time, never inferred from the thermostat's selected mode. */
 enum class HvacActivity(val label: String, val legend: String, val color: Int) {
-    HEATING("Heating (on)", "Heat", 0xFFFFA05A.toInt()),
-    COOLING("Cooling (on)", "Cool", 0xFFBAA1FF.toInt()),
-    IDLE("Idle (off)", "Idle", 0xFFA6B8B2.toInt()),
+    HEATING("Heat", "Heat", 0xFFFFA05A.toInt()),
+    COOLING("Cool", "Cool", 0xFFBAA1FF.toInt()),
+    IDLE("Off", "Off", 0xFFA6B8B2.toInt()),
     UNKNOWN("Unknown (not reported)", "?", 0xFFCBD5D1.toInt());
 
     companion object {

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Mark actual indoor temperature samples with reported heating, cooling, idle/off or unknown
+- Mark actual indoor temperature samples with reported Heat, Cool, Off or unknown
   activity on daily and widget graphs; show sample HVAC state/time when inspecting daily history.
 - Retain existing running-state storage and CSV backups; markers do not infer cycle transitions
   or runtime between samples, and unsupported/older missing state stays unknown.
