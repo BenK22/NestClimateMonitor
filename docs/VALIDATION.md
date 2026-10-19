@@ -230,6 +230,21 @@ The later APK metadata opt-out was checked separately as recorded below.
   shading uses existing history without migration or new sampling. The 30-minute shading cap
   is a presentation rule, not a claim of exact mode-change times. No release assets were changed.
 
+## Continuous mode shading follow-up (2026-10-19)
+
+- At the maintainer's request, last-observed mode backgrounds now span sampling gaps until
+  the next recorded mode change, replacing the initial 30-minute presentation cutoff above.
+  Adjacent equal modes merge; explicit missing/unsupported modes still interrupt shading, and
+  renderers still clip future time. Stored samples and equipment-activity markers are unchanged.
+- Full-SDK debug tests, lint, assembly and isolated instrumentation passed: 84 JVM tests and
+  27 Pixel device tests. Regression cases include multi-hour gaps, merging unchanged modes,
+  a predecessor covering the widget window and interruptions by an explicit unknown snapshot.
+  All 27 helper tests and publication/history/documentation checks passed.
+- The compatible development update retained the complete reading count and all six preference
+  files. The maintainer's October 18 chart was visually checked on the phone: its sampled Heat/Cool
+  setting now forms one continuous background instead of expired strips. This is approximate
+  last-observed-mode presentation, not exact switch-event history. No release assets were changed.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official

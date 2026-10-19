@@ -112,8 +112,7 @@ class ReadingStoreTest {
         store.insertAll(listOf(prior, missing, current))
         val history = store.widgetHistory(now)
         assertEquals(listOf(prior, missing, current), history)
-        assertEquals(listOf(ThermostatModeBand(current.timestampMs,
-            current.timestampMs + ThermostatModeHistory.MAX_HOLD_MS, ThermostatMode.COOL)),
+        assertEquals(listOf(ThermostatModeBand(current.timestampMs, now, ThermostatMode.COOL)),
             ThermostatModeHistory.bands(history, start, now))
     }
 

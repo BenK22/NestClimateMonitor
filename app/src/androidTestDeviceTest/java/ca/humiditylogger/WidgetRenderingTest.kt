@@ -53,7 +53,7 @@ class WidgetRenderingTest {
                 val mode = ThermostatMode.fromReported(raw)
                 val labelSize = (bitmap.height * 0.095f).coerceIn(10f, 32f)
                 val y = (labelSize * 3f + 20f).toInt()
-                // First 30 minutes are shaded; two hours after the sample must be transparent.
+                // A known selected mode persists across the whole gap, independently of activity.
                 val axisText = android.graphics.Paint().apply {
                     textSize = labelSize
                     typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
@@ -67,7 +67,8 @@ class WidgetRenderingTest {
                     assertEquals(38, Color.alpha(pixel))
                     assertTrue(Color.red(pixel) > 0 && Color.green(pixel) > 0)
                 }
-                assertEquals(0, Color.alpha(bitmap.getPixel(bitmap.width / 2, y)))
+                assertEquals(if (mode == ThermostatMode.UNKNOWN) 0 else 38,
+                    Color.alpha(bitmap.getPixel(bitmap.width / 2, y)))
             } finally { bitmap.recycle() }
         }
     }

@@ -127,9 +127,10 @@ with diagnostics. Missing exposed traits are not inferred from another device.
   cooling, off and unknown without relying on color. Large widgets include the same marker key.
 - `ThermostatModeHistory` reads the separate saved `systemMode`, not `runningState`, for subtle
   daily/widget plot backgrounds. SDM HEATCOOL and Home Auto normalize to Heat/Cool; unsupported
-  values stay unknown. A band holds a sampled mode until the next snapshot, capped at two requested
-  intervals (30 minutes). Null/unsupported snapshots interrupt it, and renderers cap at now. These
-  bounded last-observed intervals are not exact change times or a reconstruction of missing history.
+  values stay unknown. A band holds a sampled mode across sampling gaps until a different mode is
+  recorded; adjacent equal bands merge. Null/unsupported snapshots interrupt it, and renderers cap
+  at now. These carried last-observed settings approximate switch times rather than establish events
+  between samples; raw readings and equipment-activity markers remain discrete observations.
 - Schema version 3 uses additive migrations: version 2 added thermostat metadata, version 3 added
   device identity. Future migrations must preserve existing history; bump the version and test
   upgrading old schemas instead of dropping/recreating tables.

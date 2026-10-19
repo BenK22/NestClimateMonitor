@@ -1933,7 +1933,8 @@ class MainActivity : ComponentActivity() {
                 }
             })
             addView(TextView(this@MainActivity).apply {
-                text = "Shading shows the last observed mode for up to 30 minutes; gaps stay unshaded. " +
+                text = "Shading carries the last observed mode until the next recorded change; " +
+                    "switch times are approximate. Missing modes stay unshaded. " +
                     "HVAC markers show equipment activity at each indoor temperature sample. " +
                     "Tap the graph for details. " +
                     "Short cycles between samples may be missed."

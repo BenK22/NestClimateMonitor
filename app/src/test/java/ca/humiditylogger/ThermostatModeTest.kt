@@ -3,7 +3,7 @@ package ca.humiditylogger
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Selected-mode shading must stay distinct from running state and bounded by saved evidence. */
+/** Selected-mode shading carries recorded settings across gaps without inventing exact switch times. */
 class ThermostatModeTest {
     @Test fun normalizesSdmAndHomeModesButNotRunningStates() {
         val expected = mapOf(" heat " to ThermostatMode.HEAT, "Cool" to ThermostatMode.COOL,
@@ -28,12 +28,23 @@ class ThermostatModeTest {
             ThermostatModeBand(40, 50, ThermostatMode.COOL)), ThermostatModeHistory.bands(rows, 0, 50))
     }
 
-    @Test fun neverFillsLongGapsOrTimeBeforeFirstSample() {
-        val cap = ThermostatModeHistory.MAX_HOLD_MS
-        val rows = listOf(row(10, "HEAT"), row(cap * 3, "COOL"))
-        assertEquals(listOf(ThermostatModeBand(10, 10 + cap, ThermostatMode.HEAT),
-            ThermostatModeBand(cap * 3, cap * 4, ThermostatMode.COOL)),
-            ThermostatModeHistory.bands(rows, 0, cap * 5))
+    @Test fun spansLongGapsAndMergesUnchangedModeUntilNextRecordedChange() {
+        val hour = 3_600_000L
+        val rows = listOf(row(10, "HEAT"), row(hour * 2, "HEAT"), row(hour * 3, "COOL"))
+        assertEquals(listOf(ThermostatModeBand(10, hour * 3, ThermostatMode.HEAT),
+            ThermostatModeBand(hour * 3, hour * 5, ThermostatMode.COOL)),
+            ThermostatModeHistory.bands(rows, 0, hour * 5))
+    }
+
+    @Test fun carriesARecordedPredecessorAcrossTheEntireWindowWithoutLaterSamples() {
+        assertEquals(listOf(ThermostatModeBand(10_000, 20_000, ThermostatMode.HEAT_COOL)),
+            ThermostatModeHistory.bands(listOf(row(1, "HEATCOOL")), 10_000, 20_000))
+    }
+
+    @Test fun doesNotMergeTheSameModeAcrossAnExplicitUnknownSnapshot() {
+        val rows = listOf(row(10, "HEAT"), row(20, null), row(30, "HEAT"))
+        assertEquals(listOf(ThermostatModeBand(10, 20, ThermostatMode.HEAT),
+            ThermostatModeBand(30, 40, ThermostatMode.HEAT)), ThermostatModeHistory.bands(rows, 0, 40))
     }
 
     @Test fun clipsPredecessorAtWindowStartAndEndAtNowWithoutUsingFutureRows() {

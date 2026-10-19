@@ -8,8 +8,9 @@
   or runtime between samples, and unsupported/older missing state stays unknown.
 - Show the unknown HVAC legend entry only when actual displayed samples have unknown activity.
 - Shade daily/widget graph backgrounds by saved selected thermostat mode (Heat, Cool, Heat/Cool,
-  Off), independently of running-state markers; show mode in daily sample details. Cap last-observed
-  shading at 30 minutes and leave missing modes, long gaps and future time unshaded.
+  Off), independently of running-state markers; show mode in daily sample details. Carry the last
+  observed mode across sampling gaps until the next recorded change; leave missing modes and future
+  time unshaded, and treat switch times as approximate.
 
 ## 0.4.3
 

@@ -42,8 +42,9 @@ short heating/cooling cycles between samples may be missed. Missing state is nev
 Subtle graph backgrounds show the **selected thermostat mode**, separately from equipment activity:
 warm/orange for Heat, blue for Cool, purple for Heat/Cool, and grey for Off. This uses the mode already
 saved with past readings; it cannot recover modes that were never recorded. Each band holds the last
-observed mode until the next sample, for at most 30 minutes, and never extends into future time.
-Missing/unsupported modes and longer gaps remain unshaded. Tap daily history to see the sampled mode.
+observed mode across sampling gaps until the next recorded change, without extending into future time.
+Switch times are approximate; missing/unsupported mode observations interrupt shading until a known
+mode is recorded again. Tap daily history to see the sampled mode.
 Mode names follow [Nest's mode trait](https://developers.google.com/nest/device-access/traits/device/thermostat-mode);
 Google Home's Auto mode is displayed as Heat/Cool.
 

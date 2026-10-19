@@ -20,6 +20,41 @@ import kotlin.math.roundToInt
 class HvacChartTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    @Test fun dailyModeBackgroundSpansLongSampleGapsUntilRecordedChange() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val hour = 3_600_000L
+            val chart = ReadingChartView(context).apply {
+                dayStartMs = 0
+                dayEndMs = 24 * hour
+                readings = listOf(1L, 4L, 20L).map { time ->
+                    Reading(time * hour, "Synthetic", "device", 20.0, null,
+                        systemMode = if (time < 20) "HEATCOOL" else "COOL", runningState = "OFF")
+                }
+            }
+            chart.measure(View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(700, View.MeasureSpec.EXACTLY))
+            chart.layout(0, 0, 1000, 700)
+            val bitmap = Bitmap.createBitmap(1000, 700, Bitmap.Config.ARGB_8888)
+            val reference = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            try {
+                chart.draw(Canvas(bitmap))
+                val density = context.resources.displayMetrics.density
+                val left = 48f * density
+                val right = 1000 - left
+                val y = (35f * density).roundToInt()
+                for ((time, mode) in listOf(2 to ThermostatMode.HEAT_COOL,
+                    12 to ThermostatMode.HEAT_COOL, 22 to ThermostatMode.COOL)) {
+                    reference.eraseColor(Color.rgb(18, 27, 25))
+                    Canvas(reference).drawColor(Color.argb(38, Color.red(mode.color),
+                        Color.green(mode.color), Color.blue(mode.color)))
+                    val x = (left + (right - left) * time / 24f).roundToInt()
+                    assertEquals("Mode shading expired during a sample gap", reference.getPixel(0, 0),
+                        bitmap.getPixel(x, y))
+                }
+            } finally { bitmap.recycle(); reference.recycle() }
+        }
+    }
+
     @Test fun dailyBackgroundUsesSelectedModesAndLeavesMissingHistoryUnshaded() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             val interval = 600_000L
