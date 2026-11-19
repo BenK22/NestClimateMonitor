@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.4
+
 - Remember rejected Nest refresh grants and open a focused renewal screen for previously connected
   Device Access users; retain saved credentials/history and provide a way back to history, including
   a top-right close button on the connection screen.

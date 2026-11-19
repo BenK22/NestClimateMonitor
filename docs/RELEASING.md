@@ -4,11 +4,12 @@
 
 The first release is built and signed locally, then uploaded as a GitHub prerelease together with its `.apk.sha256` checksum. Release APKs use a permanent private signing key; the keystore and its password configuration remain in ignored local storage. Never regenerate the signing key for an update.
 
-The maintainer chose local-only storage in `.private-backups/release-signing` on 2026-10-05.
-No off-machine backup was made. Git ignore rules prevent publication; they do not provide backup
-or encryption. Losing this folder or machine would prevent signing compatible updates to the
-installed app. An encrypted off-machine backup with separately stored passwords is recommended,
-but is not represented as completed or required by the current maintainer's policy.
+The maintainer chose local-only signing storage on 2026-10-05. The permanent keystore is now
+outside the repository, referenced by Windows user-scope environment variables. Do not use old
+backup-folder locations or generate a replacement key. No off-machine backup or recovery test
+has been completed. Losing the key/password configuration would prevent compatible updates;
+Git ignore rules are not encryption or backup. An encrypted off-machine backup with separately
+stored passwords is recommended, but is not represented as completed.
 
 Set `RELEASE_KEYSTORE_PATH`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and `RELEASE_KEY_PASSWORD` in the build environment, then run:
 

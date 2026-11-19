@@ -33,8 +33,8 @@ android {
         applicationId = "ca.humiditylogger"
         minSdk = 29
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.4.3"
+        versionCode = 8
+        versionName = "0.4.4"
         if (!includeGoogleHome) {
             applicationIdSuffix = ".verification"
             versionNameSuffix = "-no-google-home"
