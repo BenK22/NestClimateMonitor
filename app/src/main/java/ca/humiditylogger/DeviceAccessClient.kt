@@ -23,6 +23,7 @@ import java.util.Base64
  * request bodies or bearer tokens.
  */
 class DeviceAccessClient(context: Context) {
+    private val appContext = context.applicationContext
     private val store = DeviceAccessStore(context.applicationContext)
 
     /**
@@ -80,6 +81,7 @@ class DeviceAccessClient(context: Context) {
     suspend fun thermostats(): List<Reading> = withContext(Dispatchers.IO) {
         val config = store.configuration()
         require(store.isConnected()) { "Nest Device Access is not connected." }
+        if (store.needsReauthorization()) throw NestAuthorizationRequiredException()
         val accessToken = validAccessToken()
         val response = request(
             method = "GET",
@@ -94,13 +96,21 @@ class DeviceAccessClient(context: Context) {
         if (current != null && current.expiresAtMs > System.currentTimeMillis() + TOKEN_SAFETY_MS) {
             return current.value
         }
-        val refreshToken = store.refreshToken() ?: error("Nest authorization has expired. Connect again.")
-        val response = tokenRequest(
+        val refreshToken = store.refreshToken() ?: run {
+            throw IOException("Saved Nest authorization could not be read. Unlock the phone and test the connection in Settings.")
+        }
+        val response = try { tokenRequest(
             mapOf(
                 "refresh_token" to refreshToken,
                 "grant_type" to "refresh_token",
             )
-        )
+        ) } catch (error: GoogleRequestException) {
+            if (NestAuthorizationRecovery.isRejectedRefresh(error.status, error.errorCode)) {
+                if (store.markReauthorizationRequired(refreshToken)) throw NestAuthorizationRequiredException()
+                throw IOException("Nest authorization changed during this request. The next scheduled read will use it.")
+            }
+            throw error
+        }
         // Refresh responses need not include a replacement refresh token; retain the saved grant.
         saveTokenResponse(response, null)
         return store.accessToken()?.value ?: error("Google did not return an access token.")
@@ -126,11 +136,13 @@ class DeviceAccessClient(context: Context) {
         val accessToken = response.optString("access_token").takeIf { it.isNotBlank() }
             ?: throw IOException(oauthError(response))
         val expiresInSeconds = response.optLong("expires_in", 3600L).coerceAtLeast(60L)
+        val wasRenewalRequired = store.needsReauthorization()
         store.saveTokens(
             accessToken,
             System.currentTimeMillis() + expiresInSeconds * 1000L,
             refreshToken,
         )
+        if (refreshToken != null && wasRenewalRequired) LoggerScheduler.authorizationRenewed(appContext)
     }
 
     private fun request(
@@ -156,7 +168,7 @@ class DeviceAccessClient(context: Context) {
             val response = (if (status in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                throw IOException(apiError(status, response))
+                throw GoogleRequestException(status, oauthErrorCode(response), apiError(status, response))
             }
             response
         } finally {
@@ -165,6 +177,10 @@ class DeviceAccessClient(context: Context) {
     }
 
     companion object {
+        /** Reads only the OAuth error code; never exposes tokens, descriptions or raw response bodies. */
+        internal fun oauthErrorCode(body: String): String? = runCatching {
+            JSONObject(body).opt("error") as? String
+        }.getOrNull()
         /** Creates 256 bits of random, URL-safe state to bind the redirect to this consent attempt. */
         internal fun newOAuthState(): String {
             val bytes = ByteArray(32).also(SecureRandom()::nextBytes)
@@ -246,3 +262,6 @@ class DeviceAccessClient(context: Context) {
         private const val TOKEN_SAFETY_MS = 60_000L
     }
 }
+
+/** Internal structured HTTP failure used to classify token errors without parsing display text. */
+private class GoogleRequestException(val status: Int, val errorCode: String?, message: String) : IOException(message)

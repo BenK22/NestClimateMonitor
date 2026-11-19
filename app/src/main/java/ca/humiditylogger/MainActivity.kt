@@ -56,6 +56,13 @@ import java.util.Locale
  * Explicit Refresh is delegated to [LoggerScheduler.refreshNow]. Landscape emphasizes the chart.
  */
 class MainActivity : ComponentActivity() {
+    private var renewalScreenOpen = false
+    private var renewalDismissed = false
+    private val renewNestAccess = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        renewalScreenOpen = false
+        renewalDismissed = true // Allow history after Back/Done, instead of immediately reopening renewal.
+        refreshUiFromStorage()
+    }
     private val importCsv = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(::previewCsvImport)
     }
@@ -97,6 +104,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        renewalScreenOpen = savedInstanceState?.getBoolean(KEY_RENEWAL_OPEN) ?: false
+        renewalDismissed = savedInstanceState?.getBoolean(KEY_RENEWAL_DISMISSED) ?: false
         selectedDay = restoreSelectedHistoryDay(
             savedInstanceState?.getString(KEY_SELECTED_DAY),
             LocalDate.now(zoneId),
@@ -139,9 +148,28 @@ class MainActivity : ComponentActivity() {
                 refreshUiFromStorage()
             }
         }
-        if (!getSharedPreferences(SETUP_PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_COMPLETE, false)) {
+        if (!getSharedPreferences(SETUP_PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_COMPLETE, false) &&
+            !NestAuthorizationRecovery.isRequired(this)) {
             window.decorView.post { showSetupGuide() }
         }
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        window.decorView.post { maybeOpenNestRenewal() }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!renewalScreenOpen && !isChangingConfigurations) renewalDismissed = false
+    }
+
+    private fun maybeOpenNestRenewal() {
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || renewalScreenOpen || renewalDismissed ||
+            !NestAuthorizationRecovery.isRequired(this)) return
+        renewalScreenOpen = true
+        renewNestAccess.launch(Intent(this, DeviceAccessSettingsActivity::class.java)
+            .putExtra(DeviceAccessSettingsActivity.EXTRA_RENEW_AUTHORIZATION, true))
     }
 
     private fun requestHomePermission() {
@@ -266,12 +294,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun renderDashboard(data: DashboardData) {
+        maybeOpenNestRenewal()
+        val renewalRequired = NestAuthorizationRecovery.isRequired(this)
         val last = data.last
         val weatherLocation = data.weatherLocation
         val lastSuccessMs = last?.timestampMs
         val lastError = data.lastError
         val sampleAge = lastSuccessMs?.let { System.currentTimeMillis() - it }
         status.text = when {
+            renewalRequired -> "Nest token expired · Renew access in Settings"
             !data.loggingEnabled -> "15-minute logging disabled"
             lastSuccessMs != null -> {
                 val prefix = when {
@@ -291,6 +322,7 @@ class MainActivity : ComponentActivity() {
         }
         status.setTextColor(
             when {
+                renewalRequired -> Color.rgb(255, 112, 96)
                 !data.loggingEnabled -> TEXT_SECONDARY
                 sampleAge == null || sampleAge >= 60L * 60L * 1000L -> Color.rgb(255, 112, 96)
                 sampleAge >= 30L * 60L * 1000L -> OUTDOOR_TEMPERATURE
@@ -298,7 +330,7 @@ class MainActivity : ComponentActivity() {
             }
         )
         pendingStatus?.let {
-            status.text = it
+            if (!renewalRequired) status.text = it
             pendingStatus = null
         }
         data.diagnostics?.takeIf { it.isNotBlank() }?.let {
@@ -653,6 +685,7 @@ class MainActivity : ComponentActivity() {
         val (deviceAccessRow, _) = clickableRow(
             "Nest Device Access",
             when {
+                deviceAccessStore.needsReauthorization() -> "Token expired — renew Nest access"
                 deviceAccessStore.isConnected() -> "Connected — used for background readings"
                 deviceAccessStore.isConfigured() -> "Credentials saved — authorization required"
                 else -> "Not configured"
@@ -2072,6 +2105,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(KEY_RENEWAL_OPEN, renewalScreenOpen)
+        outState.putBoolean(KEY_RENEWAL_DISMISSED, renewalDismissed)
         outState.putString(KEY_SELECTED_DAY, selectedDay.toString())
         super.onSaveInstanceState(outState)
     }
@@ -2088,6 +2123,8 @@ class MainActivity : ComponentActivity() {
         const val SETUP_PREFS = "setup"
         const val KEY_SETUP_COMPLETE = "complete"
         const val KEY_SELECTED_DAY = "selected_day"
+        const val KEY_RENEWAL_OPEN = "renewal_open"
+        const val KEY_RENEWAL_DISMISSED = "renewal_dismissed"
         val BACKGROUND = Color.rgb(9, 16, 14)
         val CARD = Color.rgb(22, 32, 29)
         val TEXT_PRIMARY = Color.rgb(238, 246, 243)

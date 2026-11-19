@@ -208,6 +208,15 @@ object LoggerScheduler {
         editor.apply()
     }
 
+    /** Clears only an obsolete consent failure after renewal; sample timestamps/history stay intact. */
+    fun authorizationRenewed(context: Context) {
+        val preferences = prefs(context)
+        if (NestAuthorizationRecovery.isLegacyGrantFailure(preferences.getString(KEY_LAST_ERROR, null))) {
+            preferences.edit().remove(KEY_LAST_ERROR)
+                .putString(KEY_STATUS, "Nest access renewed. Waiting for the next scheduled sample.").apply()
+        }
+    }
+
     /** Appends a redacted, length-limited entry while keeping the newest 20 failures. */
     internal fun appendErrorHistory(
         serialized: String?,

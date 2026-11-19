@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Remember rejected Nest refresh grants and open a focused renewal screen for previously connected
+  Device Access users; retain saved credentials/history and provide a way back to history.
+- Show “Token expired · Tap to renew” on climate widgets when the active Nest connection needs
+  consent again, clearing it after renewal. Network errors and ordinary access-token expiry do not
+  trigger renewal, and Google Home remains independent. Sampling cadence is unchanged.
+
 - Mark actual indoor temperature samples with reported Heat, Cool, Off or unknown
   activity on daily and widget graphs; show sample HVAC state/time when inspecting daily history.
 - Retain existing running-state storage and CSV backups; markers do not infer cycle transitions

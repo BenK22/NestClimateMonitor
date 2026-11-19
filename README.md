@@ -84,6 +84,14 @@ Device Access is the recommended indoor source because it supports screen-off ba
 
 **Weekly permission renewal:** Google OAuth refresh tokens for Nest expire after about **7 days** when the OAuth app is in **Testing** mode, even if the app regularly samples. If readings stop because authorization expired, repeat **Settings → Nest Device Access → 3. Connect Nest** and tap **Complete connection** to regenerate the authorization. Keep your saved client credentials and Device Access project ID; they do not need to be regenerated. See [Google's authorization guidance](https://developers.google.com/nest/device-access/reference/errors/authorization).
 
+After a previously connected Nest grant is rejected, opening the app shows **Renew Nest access**
+with the saved setup already in place. Approve Google access again, copy the final URL back, and
+tap **Complete token refresh**. **View history** lets you dismiss renewal without losing readings.
+Temperature/humidity widgets show **Token expired · Tap to renew** instead of their normal update
+status; cached values remain visible. Successful renewal clears the warning, without requesting a
+sample or resetting the periodic schedule. Ordinary access-token refreshes and temporary network
+errors do not open this screen, and selecting Google Home suppresses Nest renewal prompts.
+
 The client secret, access token, and refresh token are encrypted using Android Keystore, excluded from Android backup/device transfer, hidden from screenshots, and erased through the Device Access screen. They are still credentials held by a native client; this direct-phone design is intended for personal sideloaded use.
 
 ## Google Home setup

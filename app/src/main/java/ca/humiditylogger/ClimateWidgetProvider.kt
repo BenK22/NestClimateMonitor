@@ -46,6 +46,11 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             val options = manager.getAppWidgetOptions(id)
             val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).coerceAtLeast(110)
             val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).coerceAtLeast(48)
+            manager.updateAppWidget(id, buildViews(context, id, widthDp, heightDp))
+        }
+
+        /** Builds cached tile/graph content, prioritizing a confirmed expired grant over freshness. */
+        internal fun buildViews(context: Context, id: Int, widthDp: Int, heightDp: Int): RemoteViews {
             val showOutside = widthDp >= 220
             val showGraph = showOutside && heightDp >= 100
             val graphSize = WidgetGraphSizing.climateContentSize(widthDp, heightDp)
@@ -61,6 +66,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
             val indoor = WidgetReadingSelection.latestIndoorClimate(series.indoor) { true }
             val outdoor = series.outdoor.lastOrNull()
             val fahrenheit = WidgetGraph.useFahrenheit(context)
+            val renewalRequired = NestAuthorizationRecovery.isRequired(context)
             val views = RemoteViews(context.packageName, R.layout.widget_climate).apply {
                 setInt(R.id.widget_root, "setBackgroundResource", WidgetAppearance.background(context, id))
                 setTextViewText(R.id.widget_indoor_temp, formatTemp(indoor?.temperatureC, fahrenheit))
@@ -82,7 +88,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                 )
                 setTextViewText(
                     R.id.widget_updated,
-                    when (freshness) {
+                    if (renewalRequired) NestAuthorizationRecovery.WIDGET_MESSAGE else when (freshness) {
                         WidgetFreshness.DISABLED -> latest?.let {
                             "Logging off · Indoor ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}"
                         } ?: "Logging off"
@@ -92,7 +98,7 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                 )
                 setTextColor(
                     R.id.widget_updated,
-                    when (freshness) {
+                    if (renewalRequired) Color.rgb(255, 112, 96) else when (freshness) {
                         WidgetFreshness.FRESH -> Color.rgb(112, 219, 181)
                         WidgetFreshness.DELAYED -> Color.rgb(255, 190, 92)
                         WidgetFreshness.DISABLED -> Color.rgb(158, 177, 170)
@@ -100,8 +106,10 @@ class ClimateWidgetProvider : AppWidgetProvider() {
                     },
                 )
                 setOnClickPendingIntent(R.id.widget_root, WidgetAppearance.launchApp(context))
+                setContentDescription(R.id.widget_root, if (renewalRequired)
+                    "Nest token expired. Tap to renew access. Displayed temperatures and humidity are cached." else null)
             }
-            manager.updateAppWidget(id, views)
+            return views
         }
 
         private fun formatTemp(celsius: Double?, fahrenheit: Boolean): String {

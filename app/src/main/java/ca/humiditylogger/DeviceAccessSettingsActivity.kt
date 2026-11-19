@@ -21,6 +21,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
@@ -49,12 +51,15 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private lateinit var projectIndicator: TextView
     private lateinit var connectionIndicator: TextView
     private var awaitingAuthorization = false
+    private var renewalOnly = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         awaitingAuthorization = savedInstanceState?.getBoolean(KEY_AWAITING_AUTHORIZATION) ?: false
         store = DeviceAccessStore(applicationContext)
+        renewalOnly = intent.getBooleanExtra(EXTRA_RENEW_AUTHORIZATION, false) &&
+            store.isConfigured() && store.hasCompletedConnection()
         setContentView(buildContent())
         (lastCustomNonConfigurationInstance as? Draft)?.let { draft ->
             projectId.setText(draft.projectId)
@@ -99,13 +104,14 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             setBackgroundColor(BACKGROUND)
         }
         content.addView(TextView(this).apply {
-            text = "Device Access"
+            text = if (renewalOnly) "Renew Nest access" else "Device Access"
             textSize = 28f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(TEXT_PRIMARY)
         })
         content.addView(TextView(this).apply {
-            text = "Reliable screen-off readings • one-time non-refundable US$5 Google fee"
+            text = if (renewalOnly) "Your saved setup is ready. Renew Google's permission to resume readings."
+                else "Reliable screen-off readings • one-time non-refundable US$5 Google fee"
             textSize = 14f
             setTextColor(TEXT_SECONDARY)
             setPadding(0, dp(4), 0, dp(16))
@@ -119,6 +125,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         }
         content.addView(status, matchWrap(bottom = 16))
 
+        val setupStart = content.childCount
         sectionHeader("1. OAuth credentials").also { (view, indicator) ->
             oauthIndicator = indicator
             content.addView(view)
@@ -151,27 +158,39 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val deviceAccessConsoleLink = externalLink("Open Nest Device Access Console ↗")
         content.addView(deviceAccessConsoleLink, matchWrap(bottom = 20))
 
-        sectionHeader("3. Connect Nest").also { (view, indicator) ->
+        if (renewalOnly) for (index in setupStart until content.childCount) content.getChildAt(index).visibility = View.GONE
+
+        sectionHeader(if (renewalOnly) "Refresh Nest token" else "3. Connect Nest").also { (view, indicator) ->
             connectionIndicator = indicator
             content.addView(view)
         }
         content.addView(helpText("1. Open Google authorization.\n2. Allow access to your home and thermostat.\n3. At the Google page, tap the address bar and copy the complete URL.\n4. Return to this app.\n5. Paste the copied Google URL below."))
-        content.addView(helpText("Weekly permission renewal: In Google OAuth Testing mode, Nest authorization expires after about 7 days, even with regular sampling. If readings stop because authorization expired, repeat these steps and tap Complete connection to regenerate it. Keep your saved OAuth credentials and Device Access project ID."))
+        content.addView(helpText("Weekly permission renewal: In Google OAuth Testing mode, Nest authorization expires after about 7 days, even with regular sampling. Repeat these steps and complete the connection below to renew it. Keep your saved OAuth credentials and Device Access project ID."))
         authorizeButton = actionButton("Open Google authorization")
         content.addView(authorizeButton, matchWrap(bottom = 10))
         authorizationCode = field("Complete redirected Google URL", "", multiline = true)
         content.addView(authorizationCode, matchWrap(bottom = 10))
-        completeButton = actionButton("Complete connection")
+        completeButton = actionButton(if (renewalOnly) "Complete token refresh" else "Complete connection")
         content.addView(completeButton, matchWrap(bottom = 10))
         testButton = actionButton("Test and choose thermostat", secondary = true)
         content.addView(testButton, matchWrap(bottom = 20))
 
+        val connectionDataStart = content.childCount
         content.addView(sectionTitle("Connection data"))
         disconnectButton = actionButton("Disconnect Nest", secondary = true)
         content.addView(disconnectButton, matchWrap(bottom = 10))
         eraseButton = actionButton("Erase all Device Access data", destructive = true)
         content.addView(eraseButton, matchWrap(bottom = 18))
-        val doneButton = actionButton("Done")
+        if (renewalOnly) {
+            for (index in connectionDataStart until content.childCount) content.getChildAt(index).visibility = View.GONE
+            content.addView(actionButton("Connection settings", secondary = true).apply {
+                setOnClickListener {
+                    startActivity(Intent(this@DeviceAccessSettingsActivity, DeviceAccessSettingsActivity::class.java))
+                    finish()
+                }
+            }, matchWrap(bottom = 10))
+        }
+        val doneButton = actionButton(if (renewalOnly) "View history" else "Done")
         content.addView(doneButton)
 
         saveProjectButton.setOnClickListener {
@@ -195,6 +214,13 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         disconnectButton.setOnClickListener { confirmDisconnect() }
         eraseButton.setOnClickListener { confirmErase() }
         doneButton.setOnClickListener { finish() }
+
+        ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left + dp(20), bars.top + dp(18), bars.right + dp(20), bars.bottom + dp(32))
+            insets
+        }
+        ViewCompat.requestApplyInsets(content)
 
         return ScrollView(this).apply {
             isFillViewport = true
@@ -237,6 +263,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             setBusy(false)
             result.onSuccess { readings ->
                     authorizationCode.setText("")
+                    WidgetUpdates.requestUpdateAll(applicationContext)
                     chooseThermostat(readings)
                     renderIndicators()
                 }
@@ -362,6 +389,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
             .setPositiveButton("Disconnect") { _, _ ->
                 store.clearConnection()
                 renderStatus()
+                WidgetUpdates.requestUpdateAll(applicationContext)
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -378,6 +406,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
                 clientSecret.setText("")
                 clientSecret.hint = "Client Secret"
                 renderStatus()
+                WidgetUpdates.requestUpdateAll(applicationContext)
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -386,6 +415,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
     private fun renderStatus() {
         val config = store.configuration()
         status.text = when {
+            store.needsReauthorization() -> "Nest token expired or revoked. Renew access below; saved credentials and readings are kept."
             store.isConnected() && store.selectedDeviceId() == null ->
                 "Nest is authorized. Test the connection and choose one thermostat."
             store.isConnected() && IndoorSourcePreference.selected(this) == IndoorSource.DEVICE_ACCESS ->
@@ -406,7 +436,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         setIndicator(projectIndicator, config.projectId.isNotBlank())
         setIndicator(
             connectionIndicator,
-            store.isConnected() && store.selectedDeviceId() != null,
+            store.isConnected() && !store.needsReauthorization() && store.selectedDeviceId() != null,
         )
     }
 
@@ -420,7 +450,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         if (!::authorizeButton.isInitialized) return
         authorizeButton.isEnabled = store.isConfigured()
         completeButton.isEnabled = store.isConfigured()
-        testButton.isEnabled = store.isConnected()
+        testButton.isEnabled = store.isConnected() && !store.needsReauthorization()
         disconnectButton.isEnabled = store.isConnected()
     }
 
@@ -436,7 +466,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         ).forEach { it.isEnabled = !busy }
         authorizeButton.isEnabled = !busy && store.isConfigured()
         completeButton.isEnabled = !busy && store.isConfigured()
-        testButton.isEnabled = !busy && store.isConnected()
+        testButton.isEnabled = !busy && store.isConnected() && !store.needsReauthorization()
         disconnectButton.isEnabled = !busy && store.isConnected()
         if (message != null) status.text = message
     }
@@ -446,6 +476,7 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         status.text = message
         renderIndicators()
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        WidgetUpdates.requestUpdateAll(applicationContext)
     }
 
     private fun field(hint: String, value: String, secret: Boolean = false, multiline: Boolean = false) =
@@ -546,22 +577,24 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
-    private companion object {
-        val BACKGROUND = Color.rgb(9, 16, 14)
-        val CARD = Color.rgb(20, 32, 28)
-        val BORDER = Color.rgb(48, 70, 63)
-        val TEXT_PRIMARY = Color.rgb(236, 244, 241)
-        val TEXT_SECONDARY = Color.rgb(168, 187, 180)
-        val TEXT_MUTED = Color.rgb(113, 137, 128)
-        val ACCENT = Color.rgb(112, 219, 181)
-        val DESTRUCTIVE = Color.rgb(166, 55, 55)
-        val COMPLETE = Color.rgb(112, 219, 181)
-        val INCOMPLETE = Color.rgb(255, 111, 97)
-        const val DEVICE_ACCESS_CONSOLE_URL = "https://console.nest.google.com/device-access"
-        const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
-        const val SDM_API_CONSOLE_URL =
+    companion object {
+        /** Opens only the consent-renewal step for a previously authorized, configured connection. */
+        const val EXTRA_RENEW_AUTHORIZATION = "renew_authorization"
+        private val BACKGROUND = Color.rgb(9, 16, 14)
+        private val CARD = Color.rgb(20, 32, 28)
+        private val BORDER = Color.rgb(48, 70, 63)
+        private val TEXT_PRIMARY = Color.rgb(236, 244, 241)
+        private val TEXT_SECONDARY = Color.rgb(168, 187, 180)
+        private val TEXT_MUTED = Color.rgb(113, 137, 128)
+        private val ACCENT = Color.rgb(112, 219, 181)
+        private val DESTRUCTIVE = Color.rgb(166, 55, 55)
+        private val COMPLETE = Color.rgb(112, 219, 181)
+        private val INCOMPLETE = Color.rgb(255, 111, 97)
+        private const val DEVICE_ACCESS_CONSOLE_URL = "https://console.nest.google.com/device-access"
+        private const val OAUTH_CLIENTS_URL = "https://console.cloud.google.com/auth/clients/"
+        private const val SDM_API_CONSOLE_URL =
             "https://console.developers.google.com/apis/api/smartdevicemanagement.googleapis.com/overview"
-        const val KEY_AWAITING_AUTHORIZATION = "awaiting_authorization"
+        private const val KEY_AWAITING_AUTHORIZATION = "awaiting_authorization"
     }
 
     private data class Draft(

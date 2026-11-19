@@ -19,6 +19,7 @@ import javax.crypto.spec.GCMParameterSpec
  * connectivity means a decryptable refresh token exists, not that Google still accepts it.
  */
 class DeviceAccessStore(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** Saved non-secret identifiers and secret-presence flag; does not expose decrypted credentials. */
@@ -56,10 +57,7 @@ class DeviceAccessStore(context: Context) {
             .putString(KEY_CLIENT_ID, normalizedClientId)
             .apply {
                 if (identityChanged || !clientSecret.isNullOrBlank()) {
-                    remove(KEY_ACCESS_TOKEN)
-                    remove(KEY_ACCESS_TOKEN_EXPIRY)
-                    remove(KEY_REFRESH_TOKEN)
-                    remove(KEY_DEVICE_ID)
+                    clearConnectionValues()
                 }
                 if (identityChanged && clientSecret.isNullOrBlank()) {
                     remove(KEY_CLIENT_SECRET)
@@ -116,13 +114,15 @@ class DeviceAccessStore(context: Context) {
     fun clientSecret(): String = decryptRequired(KEY_CLIENT_SECRET, "OAuth Client Secret")
 
     /** Encrypts tokens; a null/blank refresh token preserves the current refresh grant. */
-    fun saveTokens(accessToken: String, expiresAtMs: Long, refreshToken: String? = null) {
+    fun saveTokens(accessToken: String, expiresAtMs: Long, refreshToken: String? = null) = synchronized(TOKEN_STATE_LOCK) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, encrypt(accessToken))
             .putLong(KEY_ACCESS_TOKEN_EXPIRY, expiresAtMs)
             .apply {
                 if (!refreshToken.isNullOrBlank()) {
                     putString(KEY_REFRESH_TOKEN, encrypt(refreshToken))
+                    putBoolean(KEY_AUTHORIZED_BEFORE, true)
+                    putBoolean(KEY_REAUTHORIZATION_REQUIRED, false)
                 }
             }
             .apply()
@@ -183,6 +183,24 @@ class DeviceAccessStore(context: Context) {
      */
     fun isConnected(): Boolean = !prefs.getString(KEY_REFRESH_TOKEN, null).isNullOrBlank()
 
+    /** Existing grants migrate as previously configured without decrypting anything on UI paths. */
+    fun hasCompletedConnection(): Boolean = prefs.getBoolean(KEY_AUTHORIZED_BEFORE, false) || isConnected()
+
+    /** Confirmed consent requirement, including one-time recognition of old saved grant-expiry errors. */
+    fun needsReauthorization(): Boolean = isConfigured() && hasCompletedConnection() &&
+        (prefs.getBoolean(KEY_REAUTHORIZATION_REQUIRED, false) ||
+            (!prefs.contains(KEY_AUTHORIZED_BEFORE) && isConnected() &&
+                NestAuthorizationRecovery.isLegacyGrantFailure(LoggerScheduler.lastError(appContext))))
+
+    /** Retains credentials, selected device and history; an obsolete in-flight grant cannot invalidate a new one. */
+    fun markReauthorizationRequired(rejectedRefreshToken: String? = null): Boolean = synchronized(TOKEN_STATE_LOCK) {
+        if (!hasCompletedConnection()) return@synchronized false
+        if (rejectedRefreshToken != null && refreshToken() != rejectedRefreshToken) return@synchronized false
+        prefs.edit().putBoolean(KEY_AUTHORIZED_BEFORE, true)
+            .putBoolean(KEY_REAUTHORIZATION_REQUIRED, true).apply()
+        true
+    }
+
     /** Selected full SDM resource name, not its display name or trailing identifier alone. */
     fun selectedDeviceId(): String? = prefs.getString(KEY_DEVICE_ID, null)?.takeIf { it.isNotBlank() }
 
@@ -202,6 +220,7 @@ class DeviceAccessStore(context: Context) {
             .remove(KEY_DEVICE_ID)
             .remove(KEY_PENDING_OAUTH_STATE)
             .remove(KEY_PENDING_OAUTH_STATE_CREATED)
+            .remove(KEY_REAUTHORIZATION_REQUIRED)
             .apply()
     }
 
@@ -223,6 +242,8 @@ class DeviceAccessStore(context: Context) {
         remove(KEY_DEVICE_ID)
         remove(KEY_PENDING_OAUTH_STATE)
         remove(KEY_PENDING_OAUTH_STATE_CREATED)
+        remove(KEY_AUTHORIZED_BEFORE)
+        remove(KEY_REAUTHORIZATION_REQUIRED)
     }
 
     private fun encrypt(value: String): String {
@@ -265,6 +286,7 @@ class DeviceAccessStore(context: Context) {
     private fun keyStore(): KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
     private companion object {
+        val TOKEN_STATE_LOCK = Any()
         const val PREFS = "device_access"
         const val KEY_PROJECT_ID = "project_id"
         const val KEY_CLIENT_ID = "client_id"
@@ -272,6 +294,8 @@ class DeviceAccessStore(context: Context) {
         const val KEY_ACCESS_TOKEN = "access_token_encrypted"
         const val KEY_ACCESS_TOKEN_EXPIRY = "access_token_expiry"
         const val KEY_REFRESH_TOKEN = "refresh_token_encrypted"
+        const val KEY_AUTHORIZED_BEFORE = "authorized_before"
+        const val KEY_REAUTHORIZATION_REQUIRED = "reauthorization_required"
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_PENDING_OAUTH_STATE = "pending_oauth_state"
         const val KEY_PENDING_OAUTH_STATE_CREATED = "pending_oauth_state_created"

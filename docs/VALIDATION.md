@@ -245,6 +245,28 @@ The later APK metadata opt-out was checked separately as recorded below.
   setting now forms one continuous background instead of expired strips. This is approximate
   last-observed-mode presentation, not exact switch-event history. No release assets were changed.
 
+## Nest authorization recovery checks (2026-11-19)
+
+- Full-SDK `testDebugUnitTest lintDebug assembleDebug` passed with 88 JVM tests and no lint
+  errors. Both isolated app/test APKs were assembled explicitly. All 27 helper tests and the
+  publication/history/documentation checks (40 production Kotlin files) passed.
+- Direct instrumentation on the Pixel 9a passed 29 storage/rendering tests and one climate-widget
+  recovery test, using synthetic grants in the separate device-test package. These cover persisted
+  expiry state, legacy migration, preservation of credentials/selection, replacement-grant races,
+  local key errors not being mislabeled as Google expiry, all tile sizes, clearing the warning after
+  synthetic renewal, and suppression while Google Home is selected. No Google request was needed.
+- Two earlier complete device runs could not pass their four visible-activity checks while the phone
+  was locked: three renewal-screen/routing checks and the existing version-footer check. Those
+  checks remain unverified, not passes. Re-run the complete 34-test suite with the phone unlocked.
+  For direct runs, build both `assembleDeviceTest` and `assembleDeviceTestAndroidTest`; assembling
+  only the latter does not regenerate the app APK installed alongside it.
+- The maintainer's installed development signer matched the update. An in-place update retained
+  all readings, the saved connection, and configuration/display/alert/widget settings; the logger
+  state changed as scheduled work continued. Temporary test packages were removed. The phone's
+  existing saved error matches the narrow legacy expired-grant detector, but live foreground routing
+  and Google consent renewal still require an unlocked-screen check by the maintainer. No release
+  assets were published, and no credentials, tokens or personal screenshots were committed.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official

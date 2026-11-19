@@ -92,6 +92,18 @@ without a replacement refresh token preserve the existing grant. A locally decry
 token makes `isConnected` true; this is not a server-side validity check. Google can revoke or
 expire it. Testing-mode grants commonly need weekly reconnection; see the [setup guide](../README.md).
 
+`NestAuthorizationRecovery` distinguishes a structured `invalid_grant` on refresh from transient
+HTTP/network errors and normal access-token expiry. `DeviceAccessStore` retains a completed-setup
+marker and a reauthorization-required flag without deleting the rejected grant, credentials or
+selected device; provider defaults must not silently fall back to Home. A narrow legacy-error bridge
+recognizes known old grant-expiry messages only until new authorization metadata is saved. A fresh
+consent grant clears the flag; an obsolete in-flight refresh cannot invalidate its replacement.
+With Device Access selected, dashboard foregrounding routes a previously connected user to the
+focused consent screen. Dismissal allows history until the next foreground session without a loop.
+Climate widgets prioritize the same local flag over freshness, label values as cached, and route
+taps through the dashboard. These paths neither sample nor reset WorkManager. Successful consent
+clears only obsolete auth errors, retaining prior sample timestamps and the bounded failure log.
+
 Secrets/tokens are AES-GCM encrypted in private preferences with an Android Keystore key. The
 serialized value is Base64 of the IV followed by authenticated ciphertext, not a portable backup.
 The Device Access project/client IDs, device selection and pending nonce are private preference

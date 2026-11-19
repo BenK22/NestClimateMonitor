@@ -53,6 +53,63 @@ class DeviceAccessStoreTest {
         assertFalse(store.configuration().hasClientSecret)
     }
 
+    @Test fun expiredGrantRetainsSetupAndSelectionUntilSuccessfulRenewal() {
+        store.saveConfiguration(PROJECT_ID, CLIENT_ID, CLIENT_SECRET)
+        assertFalse(store.hasCompletedConnection())
+        assertFalse(store.markReauthorizationRequired())
+        store.saveTokens("old-access", 1, "old-refresh")
+        store.setSelectedDeviceId("synthetic-device")
+        assertTrue(store.markReauthorizationRequired("old-refresh"))
+        assertTrue(DeviceAccessStore(ApplicationProvider.getApplicationContext()).needsReauthorization())
+        assertTrue(store.isConnected()) // Presence still selects Device Access; it must not fall back to Home.
+        assertEquals("synthetic-device", store.selectedDeviceId())
+        assertEquals(CLIENT_SECRET, store.clientSecret())
+        store.saveTokens("new-access", Long.MAX_VALUE, "new-refresh")
+        assertFalse(store.needsReauthorization())
+        assertFalse(store.markReauthorizationRequired("old-refresh"))
+        assertFalse(store.needsReauthorization())
+        assertEquals("synthetic-device", store.selectedDeviceId())
+        store.markReauthorizationRequired()
+        store.saveProjectId("another-project")
+        assertFalse(store.hasCompletedConnection())
+        assertFalse(store.needsReauthorization())
+    }
+
+    @Test fun legacyExpiryIsRecognizedButAnOldFailureCannotReexpireNewTokens() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        store.saveConfiguration(PROJECT_ID, CLIENT_ID, CLIENT_SECRET)
+        store.saveTokens("old-access", 1, "old-refresh")
+        context.getSharedPreferences("device_access", 0).edit().remove("authorized_before").commit()
+        val logger = context.getSharedPreferences("logger_state", 0)
+        logger.edit().putString("last_error", "Google request failed (400): Token has been expired or revoked.").commit()
+        try {
+            assertTrue(store.needsReauthorization())
+            store.saveTokens("new-access", Long.MAX_VALUE, "new-refresh")
+            assertFalse(store.needsReauthorization())
+            val beforeAttempt = LoggerScheduler.lastAttemptMs(context)
+            val beforeSuccess = LoggerScheduler.lastSuccessMs(context)
+            LoggerScheduler.authorizationRenewed(context)
+            assertNull(LoggerScheduler.lastError(context))
+            assertEquals(beforeAttempt, LoggerScheduler.lastAttemptMs(context))
+            assertEquals(beforeSuccess, LoggerScheduler.lastSuccessMs(context))
+        } finally { logger.edit().remove("last_error").commit() }
+    }
+
+    @Test fun unreadableLocalGrantIsNotReportedAsGoogleTokenExpiry() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        store.saveConfiguration(PROJECT_ID, CLIENT_ID, CLIENT_SECRET)
+        store.saveTokens("old-access", 1, "old-refresh")
+        context.getSharedPreferences("device_access", 0).edit()
+            .putString("refresh_token_encrypted", "unreadable-test-ciphertext").commit()
+        try {
+            kotlinx.coroutines.runBlocking { DeviceAccessClient(context).thermostats() }
+            fail("Unreadable local grant must fail without making a Google request")
+        } catch (error: java.io.IOException) {
+            assertFalse(error is NestAuthorizationRequiredException)
+            assertFalse(store.needsReauthorization())
+        }
+    }
+
     @Test
     fun projectAndOAuthSectionsSaveIndependently() {
         store.saveProjectId(PROJECT_ID)
