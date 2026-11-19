@@ -270,6 +270,23 @@ The later APK metadata opt-out was checked separately as recorded below.
   check. Google consent itself remains the user's action and was not performed during testing.
   No release assets were published, and no credentials, tokens or personal screenshots were committed.
 
+## Connection-screen close button (2026-11-19)
+
+- Added an accessible 48dp top-right close button in a fixed header, outside the scrolling form.
+  It finishes the connection activity like View history/Done, without modifying saved grants.
+- Close-button source `ae7fc3b` passed GitHub's
+  [shared Android unit/lint verification](https://github.com/BenK22/NestClimateMonitor/actions/runs/44592595970)
+  and [publication/privacy gate](https://github.com/BenK22/NestClimateMonitor/actions/runs/44592595996).
+  Local full-SDK JVM tests passed (88 tests). An unusually slow final full-SDK lint invocation was
+  cancelled after the CI checks passed; it is not represented as a completed lint pass. Final
+  full-SDK assembly of the normal and both isolated APKs completed successfully without rerunning lint.
+- On the unlocked Pixel 9a, all 34 final instrumentation tests passed, including the updated
+  assertions that X remains visible after scrolling, closes renewal, and does not reopen it after
+  dashboard recreation. Temporary test apps were removed.
+- The fixed-header APK was verified and installed in place with the matching developer certificate.
+  The already-renewed connection and settings were unchanged and stored history did not shrink.
+  No consent was initiated, sampling cadence changed, or release assets published.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
