@@ -287,6 +287,33 @@ The later APK metadata opt-out was checked separately as recorded below.
   The already-renewed connection and settings were unchanged and stored history did not shrink.
   No consent was initiated, sampling cadence changed, or release assets published.
 
+## v0.4.4 signed prerelease publication (2026-11-19)
+
+- Tagged and published exact source `7c4f38bdc31609dfaf9c2a70f45860bf881b920a` as
+  [v0.4.4](https://github.com/BenK22/NestClimateMonitor/releases/tag/v0.4.4), version code 8.
+  This includes the HVAC history, continuous mode shading, Nest authorization recovery and
+  persistent connection-screen close button validated above.
+- Full Google Home SDK mode passed `testDebugUnitTest assembleRelease lintRelease`:
+  88 JVM tests, no failed/skipped tests, and no release lint errors (128 warnings remain).
+  The existing local SDK repository was used; a fresh checkout and independent-account
+  onboarding were not repeated. The earlier 34 isolated phone checks remain the device evidence.
+- The permanent keystore was verified outside the repository. Signing inputs were loaded from
+  Windows user environment variables into the build process. `package-release.py` verified
+  the sole permanent signer, `ca.humiditylogger`, version 0.4.4/code 8, non-debuggable state
+  and packaged license resources. The APK's source metadata matches the tagged commit.
+- Exact-source GitHub gates passed:
+  [Android verification](https://github.com/BenK22/NestClimateMonitor/actions/runs/44596617020)
+  and [publication privacy check](https://github.com/BenK22/NestClimateMonitor/actions/runs/44596614451).
+  The [tag workflow](https://github.com/BenK22/NestClimateMonitor/actions/runs/44600453023)
+  passed configuration and skipped automatic build/publish because repository signing inputs
+  are unconfigured. The release was signed locally and uploaded through the GitHub API.
+- Published `NestClimateMonitor-v0.4.4.apk` and its `.apk.sha256` companion as a new prerelease.
+  Both server-side asset digests/sizes were checked, then both published assets were downloaded
+  and matched the reviewed local bytes. APK SHA-256:
+  `48aadf32ba51e024bb3475ae91846fcc812d0a74099fe5fb37dbd86bb720f2ff`.
+  Existing releases/tags were unchanged. The official APK was not installed over the phone's
+  differently signed development build; no uninstall, data clearing or sampling change occurred.
+
 ## Remaining human checks and known warnings
 
 - On 2026-10-05, the maintainer waived separate-account onboarding and a separate official
@@ -296,10 +323,10 @@ The later APK metadata opt-out was checked separately as recorded below.
 - Overnight locked-screen collection, battery observations and network/authorization recovery
   remain manual validation follow-ups. Weekly grant renewal still needs observation. Android
   may delay scheduled work; no exact 15-minute timing guarantee is made.
-- The existing permanent signing key and password configuration were verified present in ignored
-  `.private-backups/release-signing`, with neither file tracked. The maintainer chose local-only
-  storage on 2026-10-05; no off-machine backup or recovery test was performed. Losing this local
-  storage would prevent signing compatible updates. Git ignore rules are not encryption or backup.
+- The current permanent signing key is stored outside the repository, with signing inputs in
+  Windows user environment variables. Earlier releases used ignored local signing storage.
+  No off-machine backup or recovery test was performed. Losing the key or required credentials
+  would prevent signing compatible updates. Git ignore rules are not encryption or backup.
 - All supported thermostat models, every launcher and exact overnight sampling behavior were
   not established by these tests. A network-disabled license-screen check also remains unperformed. Use the
   [release checklist](RELEASE_CHECKLIST.md) and [troubleshooting](TROUBLESHOOTING.md).
