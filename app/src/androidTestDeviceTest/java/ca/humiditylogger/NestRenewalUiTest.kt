@@ -64,6 +64,11 @@ class NestRenewalUiTest {
                 assertFalse(texts.contains("1. OAuth credentials"))
                 assertFalse(texts.contains("2. Device Access project"))
                 assertTrue(texts.contains("View history"))
+                val close = activity.findViewById<ViewGroup>(android.R.id.content)
+                    .findViewWithTag<TextView>("device_access_close")
+                assertNotNull(close)
+                assertEquals("Close Nest connection screen", close.contentDescription.toString())
+                assertTrue(close.isClickable && close.isShown)
             }
         }
     }
@@ -88,7 +93,17 @@ class NestRenewalUiTest {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 val renewal = instrumentation.waitForMonitorWithTimeout(monitor, 5000)
                 assertNotNull("Opening the app must show renewal", renewal)
-                instrumentation.runOnMainSync { renewal.finish() }
+                instrumentation.runOnMainSync {
+                    val close = renewal.findViewById<ViewGroup>(android.R.id.content)
+                        .findViewWithTag<TextView>("device_access_close")
+                    assertNotNull(close)
+                    renewal.findViewById<ViewGroup>(android.R.id.content)
+                        .findViewWithTag<android.widget.ScrollView>("device_access_form")
+                        .fullScroll(android.view.View.FOCUS_DOWN)
+                    assertTrue("Close button must stay visible after scrolling the form",
+                        close.getGlobalVisibleRect(android.graphics.Rect()))
+                    assertTrue(close.performClick())
+                }
                 instrumentation.waitForIdleSync()
                 scenario.onActivity { assertTrue(store.needsReauthorization()) }
                 scenario.recreate()

@@ -86,7 +86,7 @@ Device Access is the recommended indoor source because it supports screen-off ba
 
 After a previously connected Nest grant is rejected, opening the app shows **Renew Nest access**
 with the saved setup already in place. Approve Google access again, copy the final URL back, and
-tap **Complete token refresh**. **View history** lets you dismiss renewal without losing readings.
+tap **Complete token refresh**. The top-right **×** or **View history** closes the screen without losing readings.
 Temperature/humidity widgets show **Token expired · Tap to renew** instead of their normal update
 status; cached values remain visible. Successful renewal clears the warning, without requesting a
 sample or resetting the periodic schedule. Ordinary access-token refreshes and temporary network

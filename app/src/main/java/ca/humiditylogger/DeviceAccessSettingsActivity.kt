@@ -100,15 +100,29 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         val config = store.configuration()
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(32))
+            setPadding(dp(20), 0, dp(20), dp(32))
             setBackgroundColor(BACKGROUND)
         }
-        content.addView(TextView(this).apply {
-            text = if (renewalOnly) "Renew Nest access" else "Device Access"
-            textSize = 28f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(TEXT_PRIMARY)
-        })
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(20), dp(18), dp(20), 0)
+            addView(TextView(this@DeviceAccessSettingsActivity).apply {
+                text = if (renewalOnly) "Renew Nest access" else "Device Access"
+                textSize = 28f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(TEXT_PRIMARY)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(actionButton("×", secondary = true).apply {
+                tag = "device_access_close"
+                contentDescription = "Close Nest connection screen"
+                textSize = 24f
+                minWidth = dp(48)
+                minimumHeight = dp(48)
+                setPadding(0, 0, 0, 0)
+                setOnClickListener { finish() }
+            }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { leftMargin = dp(8) })
+        }
         content.addView(TextView(this).apply {
             text = if (renewalOnly) "Your saved setup is ready. Renew Google's permission to resume readings."
                 else "Reliable screen-off readings • one-time non-refundable US$5 Google fee"
@@ -215,16 +229,21 @@ class DeviceAccessSettingsActivity : ComponentActivity() {
         eraseButton.setOnClickListener { confirmErase() }
         doneButton.setOnClickListener { finish() }
 
-        ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(bars.left + dp(20), bars.top + dp(18), bars.right + dp(20), bars.bottom + dp(32))
-            insets
-        }
-        ViewCompat.requestApplyInsets(content)
-
-        return ScrollView(this).apply {
-            isFillViewport = true
-            addView(content)
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(BACKGROUND)
+            addView(header, matchWrap())
+            addView(ScrollView(this@DeviceAccessSettingsActivity).apply {
+                tag = "device_access_form"
+                isFillViewport = true
+                addView(content)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+                val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                insets
+            }
+            ViewCompat.requestApplyInsets(this)
         }
     }
 

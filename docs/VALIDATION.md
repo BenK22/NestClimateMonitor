@@ -256,16 +256,19 @@ The later APK metadata opt-out was checked separately as recorded below.
   local key errors not being mislabeled as Google expiry, all tile sizes, clearing the warning after
   synthetic renewal, and suppression while Google Home is selected. No Google request was needed.
 - Two earlier complete device runs could not pass their four visible-activity checks while the phone
-  was locked: three renewal-screen/routing checks and the existing version-footer check. Those
-  checks remain unverified, not passes. Re-run the complete 34-test suite with the phone unlocked.
+  was locked. After unlocking, direct instrumentation ran the final complete 34-test suite and all
+  tests passed, including the three renewal-screen/routing checks and existing version-footer check.
   For direct runs, build both `assembleDeviceTest` and `assembleDeviceTestAndroidTest`; assembling
   only the latter does not regenerate the app APK installed alongside it.
 - The maintainer's installed development signer matched the update. An in-place update retained
   all readings, the saved connection, and configuration/display/alert/widget settings; the logger
   state changed as scheduled work continued. Temporary test packages were removed. The phone's
-  existing saved error matches the narrow legacy expired-grant detector, but live foreground routing
-  and Google consent renewal still require an unlocked-screen check by the maintainer. No release
-  assets were published, and no credentials, tokens or personal screenshots were committed.
+  existing saved error matches the narrow legacy expired-grant detector. On the unlocked phone,
+  opening the installed app displayed the focused renewal screen with saved setup retained. The
+  live Nova climate widget's red expiry warning was visually verified; tapping it returned to renewal.
+  Nova did not expose its accessibility tree, so only the private screenshot was used for that visual
+  check. Google consent itself remains the user's action and was not performed during testing.
+  No release assets were published, and no credentials, tokens or personal screenshots were committed.
 
 ## Remaining human checks and known warnings
 
